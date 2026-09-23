@@ -8,7 +8,7 @@ import { TopBar, navigate, toast, useWakeLock } from '../ui.js';
 import { RulesButton } from './rules.js';
 import { Contract, Felt, Table, useNames } from './table.js';
 
-const HIDDEN_HAND = ['deal', 'bidding', 'trump', 'playing'];
+const HIDDEN_HAND = ['deal', 'bidding', 'playing'];
 const AS_HOST = ['options', 'start', 'next', 'replay'];  // actions de la table, pas d'un joueur
 
 function LocalLobby({ game, onStart }) {
@@ -83,7 +83,7 @@ function Handoff({ game, onReady }) {
   const state = E.buildView(game, null);
   const name = useNames(state);
   const who = E.player(game, game.turn);
-  const what = { deal: 'de donner', bidding: "d'annoncer", trump: "de choisir l'atout", playing: 'de jouer' }[game.phase];
+  const what = { deal: 'de donner', bidding: "d'annoncer", playing: 'de jouer' }[game.phase];
   return html`<div class="screen table-screen">
     <${TopBar} label="1 téléphone" conn="local"><${RulesButton} state=${state} /></${TopBar}>
     <${Contract} state=${state} name=${name} />
@@ -98,7 +98,7 @@ function Handoff({ game, onReady }) {
 }
 
 export function LocalTable() {
-  const game = useRef(storage.loadLocal());
+  const game = useRef(E.upgrade(storage.loadLocal()));
   const [, setTick] = useState(0);
   const [viewer, setViewer] = useState(null);
   const [editing, setEditing] = useState(() => !game.current || game.current.phase === 'lobby');

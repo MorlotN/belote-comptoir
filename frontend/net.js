@@ -38,6 +38,7 @@ const send = (conn, msg) => {
 // ----- l'hôte : la partie vit dans son téléphone -----
 
 export function hostTable({ game, onState, onStatus, onFatal }) {
+  E.upgrade(game);
   const code = game.code;
   let peer = null;
   let closed = false;

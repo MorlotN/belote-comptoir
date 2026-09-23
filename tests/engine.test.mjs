@@ -21,17 +21,17 @@ function seatFirstDealer(game, seat = 0) {
   E.beginRound(game);
 }
 
-// Force une donne : mains imposées, enchère gagnée par `taker`.
-function rig(game, hands, taker, value, trump) {
+// Force une donne : mains imposées, enchère gagnée par `taker`, qui entame (sa première
+// carte donnera l'atout).
+function rig(game, hands, taker, value) {
   const dealer = E.player(game, game.turn);
   E.deal(game, dealer, Object.values(hands)[0].length);
   for (const [name, hand] of Object.entries(hands)) byName(game, name).hand = E.sortHand(hand, null);
   const r = game.round;
   r.high_bid = value;
   r.taker = byName(game, taker).id;
-  game.phase = 'trump';
+  game.phase = 'playing';
   game.turn = r.taker;
-  E.chooseTrump(game, byName(game, taker), trump);
 }
 
 const playAll = (game, ...moves) => moves.forEach(([name, card]) => E.play(game, byName(game, name), card));
@@ -113,8 +113,52 @@ test("enchères jusqu'à ce que tous les autres passent", () => {
   E.bid(game, paul, 30);
   assert.equal(game.turn, lea.id);  // Nico a passé : il ne reparle plus
   E.bid(game, lea, null);
-  assert.equal(game.phase, 'trump');
+  assert.equal(game.phase, 'playing');  // pas de choix d'atout : le preneur entame
   assert.equal(game.turn, paul.id);
+  assert.equal(game.round.trump, null);
+});
+
+test("l'atout est la couleur de la première carte du preneur", () => {
+  const game = table(2);
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['9S', 'AH'], Paul: ['JS', '7S'] }, 'Nico', 10);
+  assert.equal(game.round.trump, null);
+  assert.throws(() => E.play(game, byName(game, 'Paul'), 'JS'), E.GameError);  // le preneur entame
+  E.play(game, byName(game, 'Nico'), '9S');
+  assert.equal(game.round.trump, 'S');
+  // atout demandé : Paul doit fournir et monter
+  assert.deepEqual(E.buildView(game, byName(game, 'Paul').id).playable, ['JS']);
+  E.play(game, byName(game, 'Paul'), 'JS');
+  assert.equal(game.round.last_trick.winner, byName(game, 'Paul').id);
+  assert.equal(game.round.trump, 'S');  // l'atout ne change plus de la manche
+});
+
+test('la première carte du preneur peut annoncer la belote', () => {
+  const game = table(2);
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['QD', 'KD'], Paul: ['7D', '8D'] }, 'Nico', 5);
+  E.play(game, byName(game, 'Nico'), 'QD');
+  assert.equal(game.round.belote_holder, byName(game, 'Nico').id);
+  assert.equal(game.round.trick[0].say, 'Belote');
+});
+
+test("un preneur absent entame dans sa plus longue couleur", () => {
+  const game = table(2);
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['7C', 'AH', '9H'], Paul: ['7S', '8S', '9S'] }, 'Paul', 5);
+  E.autoPlay(game, byName(game, 'Paul'));
+  assert.equal(game.round.trump, 'S');
+  assert.equal(game.round.trick[0].card, '9S');
+});
+
+test('une partie sauvée en attente du choix de l\'atout reprend', () => {
+  const game = table(2);
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['7C'], Paul: ['7S'] }, 'Nico', 5);
+  game.phase = 'trump';
+  E.upgrade(game);
+  E.play(game, byName(game, 'Nico'), '7C');
+  assert.equal(game.round.trump, 'C');
 });
 
 test('tout le monde passe : manche blanche, la donne tourne', () => {
@@ -132,7 +176,7 @@ test('tout le monde passe : manche blanche, la donne tourne', () => {
 test('le preneur qui tient marque un point', () => {
   const game = table(2);
   seatFirstDealer(game, 0);
-  rig(game, { Nico: ['JS', 'AH'], Paul: ['7S', '7H'] }, 'Nico', 40, 'S');
+  rig(game, { Nico: ['JS', 'AH'], Paul: ['7S', '7H'] }, 'Nico', 40);
   playAll(game, ['Nico', 'JS'], ['Paul', '7S'], ['Nico', 'AH'], ['Paul', '7H']);
   const res = game.round.result;
   assert.equal(res.points[game.players[0].id], 41);  // 20 + 11 + 10 de der
@@ -143,7 +187,7 @@ test('le preneur qui tient marque un point', () => {
 test('le preneur qui chute donne un point à chacun des autres', () => {
   const game = table(3);
   seatFirstDealer(game, 0);
-  rig(game, { Nico: ['7C'], Paul: ['AC'], Léa: ['8C'] }, 'Paul', 30, 'H');
+  rig(game, { Nico: ['7C'], Paul: ['AC'], Léa: ['8C'] }, 'Paul', 30);
   playAll(game, ['Paul', 'AC'], ['Léa', '8C'], ['Nico', '7C']);
   assert.equal(game.round.result.points[game.players[1].id], 21);
   assert.deepEqual(game.players.map((p) => p.score), [1, 0, 1]);
@@ -152,7 +196,7 @@ test('le preneur qui chute donne un point à chacun des autres', () => {
 test('belote-rebelote compte vingt', () => {
   const game = table(2);
   seatFirstDealer(game, 0);
-  rig(game, { Nico: ['KH', 'QH'], Paul: ['7C', '8C'] }, 'Nico', 45, 'H');
+  rig(game, { Nico: ['KH', 'QH'], Paul: ['7C', '8C'] }, 'Nico', 45);
   E.play(game, byName(game, 'Nico'), 'KH');
   assert.equal(game.round.trick[0].say, 'Belote');
   playAll(game, ['Paul', '7C'], ['Nico', 'QH']);
@@ -167,7 +211,7 @@ test('options sans dix de der ni belote', () => {
   game.dix_de_der = false;
   game.belote = false;
   seatFirstDealer(game, 0);
-  rig(game, { Nico: ['KH', 'QH'], Paul: ['7C', '8C'] }, 'Nico', 7, 'H');
+  rig(game, { Nico: ['KH', 'QH'], Paul: ['7C', '8C'] }, 'Nico', 7);
   playAll(game, ['Nico', 'KH'], ['Paul', '7C'], ['Nico', 'QH'], ['Paul', '8C']);
   assert.equal(game.round.result.points[game.players[0].id], 7);
   assert.ok(game.round.result.made);
@@ -176,7 +220,7 @@ test('options sans dix de der ni belote', () => {
 test('carte interdite ou hors tour refusée', () => {
   const game = table(2);
   seatFirstDealer(game, 0);
-  rig(game, { Nico: ['AH', '7C'], Paul: ['7H', 'AC'] }, 'Nico', 1, 'S');
+  rig(game, { Nico: ['AH', '7C'], Paul: ['7H', 'AC'] }, 'Nico', 1);
   E.play(game, byName(game, 'Nico'), 'AH');
   assert.throws(() => E.play(game, byName(game, 'Paul'), 'AC'), E.GameError);
   assert.throws(() => E.play(game, byName(game, 'Nico'), '7C'), E.GameError);
@@ -187,12 +231,12 @@ test('victoire seul en tête, sinon on continue', () => {
   seatFirstDealer(game, 0);
   const [nico, paul, lea] = game.players;
   [nico.score, paul.score, lea.score] = [2, 2, 1];
-  rig(game, { Nico: ['7C'], Paul: ['8C'], Léa: ['AC'] }, 'Léa', 100, 'H');
+  rig(game, { Nico: ['7C'], Paul: ['8C'], Léa: ['AC'] }, 'Léa', 100);
   playAll(game, ['Léa', 'AC'], ['Nico', '7C'], ['Paul', '8C']);
   assert.equal(game.phase, 'round_end');
   assert.ok(game.round.result.tie);
   E.nextRound(game, nico);
-  rig(game, { Nico: ['AD'], Paul: ['7D'], Léa: ['8D'] }, 'Nico', 1, 'S');
+  rig(game, { Nico: ['AD'], Paul: ['7D'], Léa: ['8D'] }, 'Nico', 1);
   playAll(game, ['Nico', 'AD'], ['Paul', '7D'], ['Léa', '8D']);
   assert.equal(game.phase, 'finished');
   assert.deepEqual(game.winners, [nico.id]);
@@ -250,7 +294,6 @@ for (let seed = 0; seed < 60; seed += 1) {
       const r = game.round;
       if (game.phase === 'deal') E.apply(game, actor, { type: 'deal', cards: 1 + Math.floor(rnd() * E.maxCards(game)) });
       else if (game.phase === 'bidding') E.apply(game, actor, { type: 'bid', value: rnd() < 0.5 ? null : r.high_bid + 1 + Math.floor(rnd() * 15) });
-      else if (game.phase === 'trump') E.apply(game, actor, { type: 'trump', suit: pick(E.SUITS) });
       else if (game.phase === 'playing') {
         if (rnd() < 0.2) E.autoPlay(game, actor);
         else E.apply(game, actor, { type: 'play', card: pick(E.legalCards(actor.hand, r.trick, r.trump)) });

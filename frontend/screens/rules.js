@@ -23,8 +23,12 @@ export function RulesContent({ state }) {
     <p>En commençant par le joueur qui suit le donneur, chacun annonce le nombre de points qu'il pense
       ramasser dans ses plis, toujours plus haut que l'annonce précédente, ou passe.
       Qui passe ne reparle plus. Quand tous les autres ont passé, le dernier à avoir annoncé est
-      le <b>preneur</b> : il choisit l'atout et entame. Si tout le monde passe, personne ne marque
-      et la donne tourne.</p>
+      le <b>preneur</b>. Si tout le monde passe, personne ne marque et la donne tourne.</p>
+
+    <h3>L'atout</h3>
+    <p>On ne choisit pas l'atout : le preneur entame, et <b>la couleur de la première carte qu'il
+      pose devient l'atout</b> pour toute la manche. Sur ce premier pli, les autres doivent donc
+      fournir à l'atout et monter s'ils le peuvent.</p>
 
     <h3>Le jeu de la carte</h3>
     <p>Comme à la belote : on fournit la couleur demandée ; sans elle, on coupe à l'atout ; à l'atout,

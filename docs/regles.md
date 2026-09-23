@@ -11,7 +11,9 @@ fait, et marque **(choix)** ce que les sources laissent ouvert.
 - Le donneur donne à chacun **de 1 à 5 cartes**, à son gré. Pas de retourne, pas de
   second tour de distribution ; les cartes restantes ne servent pas.
 - Chacun à son tour annonce le nombre de points qu'il pense réaliser, ou passe.
-- Le plus offrant choisit l'atout et joue le premier.
+- Le plus offrant joue le premier. Les sources disent qu'il choisit l'atout ; à la table de
+  Nicolas, **l'atout est la couleur de la première carte que pose le preneur** (règle
+  demandée le 23 septembre 2026, c'est celle du jeu).
 - Le jeu de la carte est celui de la belote classique.
 - Si le preneur atteint son annonce, il marque **1 point** ; sinon, **chacun des autres
   joueurs** marque 1 point.
@@ -26,6 +28,9 @@ fait, et marque **(choix)** ce que les sources laissent ouvert.
 - **(choix)** Le premier à parler est le joueur qui suit le donneur, qui sert aussi en
   premier. La donne tourne d'un siège à chaque manche, blanche comprise. Le premier
   donneur est tiré au sort.
+- Pas de choix d'atout : le preneur entame et la couleur de sa première carte devient
+  l'atout pour toute la manche. La belote-rebelote se constate à ce moment-là (cette
+  première carte comprise).
 - Obligations au jeu de la carte, chacun pour soi : fournir la couleur demandée ; sans
   elle, couper ; à l'atout (demandé ou en coupe), monter dès qu'on le peut ; qui ne
   peut pas monter coupe quand même (sous-coupe). Sans la couleur ni atout, défausse libre.

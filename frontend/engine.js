@@ -243,28 +243,26 @@ export function bid(game, actor, value) {
   const next = after(game, actor.id).find((p) => !p.passed);
   if (!next) voidRound(game);
   else if (next.id === r.taker) {
-    game.phase = 'trump';
-    game.turn = r.taker;
+    game.phase = 'playing';
+    game.turn = r.taker;  // le preneur entame, et sa première carte donne l'atout
   } else game.turn = next.id;
 }
 
-export function chooseTrump(game, actor, trump) {
-  requireTurn(game, actor, 'trump');
-  require(SUITS.includes(trump), 'Couleur inconnue');
+// L'atout n'est pas choisi : c'est la couleur de la première carte que pose le preneur.
+function setTrump(game, trump) {
   const r = game.round;
   r.trump = trump;
   for (const p of game.players) {
     p.hand = sortHand(p.hand, trump);
     if (game.belote && p.hand.includes(`K${trump}`) && p.hand.includes(`Q${trump}`)) r.belote_holder = p.id;
   }
-  game.phase = 'playing';
-  game.turn = actor.id;  // le preneur entame
 }
 
 export function play(game, actor, card) {
   requireTurn(game, actor, 'playing');
   const r = game.round;
   require(actor.hand.includes(card), "Tu n'as pas cette carte");
+  if (!r.trump) setTrump(game, suit(card));  // avant de retirer la carte : elle compte pour la belote
   require(legalCards(actor.hand, r.trick, r.trump).includes(card), 'Carte interdite : il faut fournir, couper ou monter');
   actor.hand = actor.hand.filter((c) => c !== card);
   let say = null;
@@ -345,7 +343,7 @@ export function replay(game, actor) {
 }
 
 // L'hôte fait jouer le joueur dont c'est le tour quand son téléphone a décroché : il passe,
-// sert 5 cartes, prend sa plus longue couleur, joue sa plus petite carte permise.
+// sert 5 cartes, entame dans sa plus longue couleur, sinon joue sa plus petite carte permise.
 export function standIn(game, actor) {
   require(actor.id === game.host, "Seul l'hôte peut jouer pour un absent");
   const target = player(game, game.turn);
@@ -357,11 +355,15 @@ export function standIn(game, actor) {
 export function autoPlay(game, target) {
   if (game.phase === 'deal') deal(game, target, maxCards(game));
   else if (game.phase === 'bidding') bid(game, target, null);
-  else if (game.phase === 'trump') {
-    const count = (s) => target.hand.filter((c) => suit(c) === s).length;
-    chooseTrump(game, target, SUITS.reduce((a, b) => (count(b) > count(a) ? b : a)));
-  } else if (game.phase === 'playing') {
+  else if (game.phase === 'playing') {
     const r = game.round;
+    if (!r.trump) {  // entame du preneur : sa plus forte carte dans sa plus longue couleur devient l'atout
+      const count = (s) => target.hand.filter((c) => suit(c) === s).length;
+      const longest = SUITS.reduce((a, b) => (count(b) > count(a) ? b : a));
+      const cards = target.hand.filter((c) => suit(c) === longest);
+      play(game, target, cards.reduce((a, b) => (strength(b, longest, longest) > strength(a, longest, longest) ? b : a)));
+      return;
+    }
     const led = r.trick.length ? suit(r.trick[0].card) : null;
     const legal = legalCards(target.hand, r.trick, r.trump);
     const cost = (c) => points(c, r.trump) * 1000 + strength(c, r.trump, led || suit(c));
@@ -375,12 +377,18 @@ const ACTIONS = {
   start: (g, p) => start(g, p),
   deal: (g, p, a) => deal(g, p, a.cards),
   bid: (g, p, a) => bid(g, p, a.value),
-  trump: (g, p, a) => chooseTrump(g, p, a.suit),
   play: (g, p, a) => play(g, p, a.card),
   next: (g, p, a) => nextRound(g, p, a.round),
   replay: (g, p) => replay(g, p),
   stand_in: (g, p) => standIn(g, p),
 };
+
+// Une partie sauvée avant que l'atout soit donné par la première carte (23 sept. 2026)
+// pouvait attendre un choix d'atout : le preneur entame simplement.
+export function upgrade(game) {
+  if (game && game.phase === 'trump') game.phase = 'playing';
+  return game;
+}
 
 export function apply(game, actor, action) {
   const fn = action && typeof action === 'object' ? ACTIONS[action.type] : null;

@@ -1,6 +1,6 @@
 """De vraies parties dans Chrome headless (bin/e2e) : la page statique servie en local,
-chaque joueur n'agit que par l'interface (donner, annoncer, choisir l'atout, toucher
-deux fois une carte pour la poser, passer à la manche suivante).
+chaque joueur n'agit que par l'interface (donner, annoncer, toucher deux fois une carte
+pour la poser, la première du preneur donnant l'atout, passer à la manche suivante).
 
 - en réseau : trois navigateurs, liaison directe par PeerJS (il faut Internet : le
   serveur public de PeerJS sert à se trouver) ;
@@ -79,10 +79,9 @@ def take_turn(page, i, taken):
         else:
             page.click("button:has-text('+5')")
             page.click("button:has-text('Annoncer')")
-    elif page.locator(".suits button").count():
-        page.click(".suits button >> nth=%d" % (i % 4))
     elif page.locator(".card.playable").count():
-        page.locator(".card.playable").first.click()
+        cards = page.locator(".card.playable")
+        cards.nth(i % cards.count()).click()  # l'entame du preneur donne l'atout : on varie
         if "pli" not in taken and page.locator(".played").count():
             shot(page, "05-pli")
             taken.add("pli")

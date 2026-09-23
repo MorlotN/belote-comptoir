@@ -1,11 +1,11 @@
 // La table : adversaires en haut, tapis au milieu, ta main en bas.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { html } from '../html.js';
-import { Card, CardBacks, SUITS, SUIT_NAME, SUIT_SYMBOL, Suit, cardName } from '../cards.js';
+import { Card, CardBacks, SUIT_NAME, Suit, cardName } from '../cards.js';
 import { ConnBanner, Sheet, TopBar, plural } from '../ui.js';
 import { RulesButton } from './rules.js';
 
-const ACTIVE = ['deal', 'bidding', 'trump', 'playing'];
+const ACTIVE = ['deal', 'bidding', 'playing'];
 
 function useTurnAlert(active) {
   const prev = useRef(false);
@@ -31,7 +31,7 @@ function Seat({ p, state }) {
   if (!p.connected) cls.push('away');
   if (p.id === state.me) cls.push('me');
   const bid = state.phase === 'bidding' ? bidLabel(p.bid) : null;
-  const taker = r && r.taker === p.id && ['trump', 'playing'].includes(state.phase);
+  const taker = r && r.taker === p.id && state.phase === 'playing';
   return html`<div class=${cls.join(' ')}>
     <div class="seat-top">
       <span class="seat-name">${p.id === state.me ? 'Toi' : p.name}</span>
@@ -57,7 +57,9 @@ export function Contract({ state, name }) {
     text = r.taker ? html`Plus haute annonce : <b>${r.high_bid}</b> (${name(r.taker)})` : 'Pas encore d\'annonce';
   } else if (r.trump) {
     text = html`${name(r.taker)} doit faire <b>${r.high_bid}</b> · atout <${Suit} suit=${r.trump} /> ${SUIT_NAME[r.trump]}`;
-  } else text = html`${name(r.taker)} prend à <b>${r.high_bid}</b>`;
+  } else if (r.taker === state.me) {
+    text = html`Tu dois faire <b>${r.high_bid}</b> · ta première carte donne l'atout`;
+  } else text = html`${name(r.taker)} doit faire <b>${r.high_bid}</b> · sa première carte donnera l'atout`;
   return html`<div class="contract">
     <span>${text}</span>
     ${r.cards_each ? html`<span class="tiny muted">${plural(r.cards_each, 'carte')} chacun</span>` : null}
@@ -74,7 +76,7 @@ export function Felt({ state, name }) {
     faded = true;
     caption = r.last_trick.winner === state.me ? 'Tu ramasses le pli' : `Pli pour ${name(r.last_trick.winner)}`;
   }
-  if (state.phase === 'bidding' || state.phase === 'trump') {
+  if (state.phase === 'bidding') {
     return html`<div class="felt">
       <div class="bids">
         ${r.bids.length === 0 ? html`<p class="felt-hint">${state.turn === state.me ? 'Tu parles' : `${name(state.turn)} parle`} en premier</p>` : null}
@@ -94,7 +96,7 @@ export function Felt({ state, name }) {
         <${Card} card=${t.card} size="table" trump=${r.trump} />
         <span class="who">${name(t.player)}</span>
       </div>`)}
-      ${!cards.length ? html`<p class="felt-hint">${state.turn === state.me ? 'Tu entames' : `${name(state.turn)} entame`}</p>` : null}
+      ${!cards.length ? html`<p class="felt-hint">${state.turn === state.me ? 'Tu entames' : `${name(state.turn)} entame`}${r.trump ? '' : ' : cette carte donnera l\'atout'}</p>` : null}
     </div>
     ${caption ? html`<p class="caption">${caption}</p>` : null}
   </div>`;
@@ -133,19 +135,7 @@ function BidPicker({ state, act }) {
       <button type="button" class="btn primary grow" onClick=${() => act({ type: 'bid', value })}>Annoncer ${value}</button>
     </div>
     <p class="tiny muted">Les points que tu comptes ramasser dans tes plis${state.options.dix_de_der ? ', dix de der compris' : ''}.
-      Si tu remportes l'enchère, c'est toi qui choisis l'atout et qui entames.</p>
-  </div>`;
-}
-
-function TrumpPicker({ state, act }) {
-  return html`<div class="panel col action">
-    <h3>Tu prends à ${state.round.high_bid} : choisis l'atout</h3>
-    <div class="suits">
-      ${SUITS.map((s) => html`<button key=${s} type="button" class=${`btn suit-btn ${['H', 'D'].includes(s) ? 'red' : 'black'}`}
-        onClick=${() => act({ type: 'trump', suit: s })} aria-label=${SUIT_NAME[s]}>
-        <span class="suit-big">${SUIT_SYMBOL[s]}</span><span class="tiny">${SUIT_NAME[s]}</span>
-      </button>`)}
-    </div>
+      Si tu remportes l'enchère, tu entames, et la couleur de ta première carte devient l'atout.</p>
   </div>`;
 }
 
@@ -175,8 +165,9 @@ function Hand({ state, act }) {
   };
   return html`<div class="hand-zone">
     ${myTurn ? html`<p class="hand-hint">${sel
-      ? html`<button type="button" class="btn primary" onClick=${() => act({ type: 'play', card: sel })}>Poser ${cardName(sel, true)}</button>`
-      : 'À toi : touche une carte'}</p>` : null}
+      ? html`<button type="button" class="btn primary" onClick=${() => act({ type: 'play', card: sel })}>
+          Poser ${cardName(sel, true)}${r.trump ? '' : ` · atout ${SUIT_NAME[sel.slice(-1)]}`}</button>`
+      : r.trump ? 'À toi : touche une carte' : 'Ta première carte donne l\'atout : touche une carte'}</p>` : null}
     <div class="hand">
       ${state.hand.map((c) => html`<${Card} key=${c} card=${c} trump=${r && r.trump}
         dim=${myTurn && !playable.has(c)} playable=${myTurn && playable.has(c)} selected=${sel === c}
@@ -290,8 +281,6 @@ export function Table({ state, act, conn, role, label, onLeave }) {
   } else if (state.phase === 'bidding') {
     if (myTurn) panel = html`<${BidPicker} key=${r.number} state=${state} act=${act} />`;
     else panel = html`<${Waiting} text=${`${me && me.passed ? 'Tu as passé. ' : ''}${turnName} réfléchit`} />`;
-  } else if (state.phase === 'trump') {
-    panel = myTurn ? html`<${TrumpPicker} state=${state} act=${act} />` : html`<${Waiting} text=${`${turnName} choisit l'atout`} />`;
   } else if (state.phase === 'playing' && !myTurn) {
     panel = html`<${Waiting} text=${`${turnName} joue`} />`;
   }
