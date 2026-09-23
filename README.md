@@ -47,7 +47,8 @@ bin/e2e        # une partie à 3 navigateurs en réseau + une sur un seul télé
 ```
 
 Pour `bin/e2e` : `python3 -m venv .venv && .venv/bin/pip install pytest playwright`.
-`BELOTE_SHOTS=/tmp/captures bin/e2e` garde des captures d'écran.
+`BELOTE_SHOTS=/tmp/captures bin/e2e` garde des captures d'écran ;
+`BELOTE_URL=https://morlotn.github.io/belote-comptoir/ bin/e2e` joue sur la version en ligne.
 
 La première version (commit b12321f) tournait sur un serveur Python (FastAPI +
 WebSocket) ; elle reste dans l'historique si un jour la table doit vivre sur un serveur.

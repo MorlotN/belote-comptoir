@@ -30,6 +30,9 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 @pytest.fixture(scope="module")
 def site():
+    if os.environ.get("BELOTE_URL"):  # la version en ligne : BELOTE_URL=https://morlotn.github.io/belote-comptoir/
+        yield os.environ["BELOTE_URL"]
+        return
     handler = functools.partial(QuietHandler, directory=str(ROOT / "frontend"))
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
