@@ -2,7 +2,7 @@
 import { useMemo } from 'preact/hooks';
 import { html } from '../html.js';
 import { qrSvg } from '../qr.js';
-import { ConnBanner, TopBar, appUrl, toast } from '../ui.js';
+import { ConnBanner, MODE_HINT, TopBar, appUrl, toast } from '../ui.js';
 import { RulesButton } from './rules.js';
 
 function shareLink(code) {
@@ -35,6 +35,26 @@ function Toggle({ label, hint, checked, disabled, onChange }) {
     <input type="checkbox" checked=${checked} disabled=${disabled} onChange=${(e) => onChange(e.currentTarget.checked)} />
     <i class="switch"></i>
   </label>`;
+}
+
+// En manches ou en points, et combien : partagé avec le mode un seul téléphone.
+export function GoalPicker({ mode, target, targets, disabled, onMode, onTarget }) {
+  return html`
+    <div class="field">
+      <span>On gagne en</span>
+      <div class="segmented">
+        <button type="button" class=${mode === 'rounds' ? 'on' : ''} disabled=${disabled} onClick=${() => onMode('rounds')}>Manches</button>
+        <button type="button" class=${mode === 'points' ? 'on' : ''} disabled=${disabled} onClick=${() => onMode('points')}>Points</button>
+      </div>
+      <span class="tiny muted">${MODE_HINT[mode]}</span>
+    </div>
+    <div class="field">
+      <span>${mode === 'points' ? 'Points à atteindre' : 'Manches à gagner'}</span>
+      <div class="segmented">
+        ${targets.map((t) => html`<button key=${t} type="button" class=${t === target ? 'on' : ''}
+          disabled=${disabled} onClick=${() => onTarget(t)}>${t}</button>`)}
+      </div>
+    </div>`;
 }
 
 export function Lobby({ state, act, conn, role, onLeave }) {
@@ -77,14 +97,8 @@ export function Lobby({ state, act, conn, role, onLeave }) {
 
     <section class="panel col">
       <h3>Réglages ${isHost ? '' : html`<span class="tiny muted">(l'hôte décide)</span>`}</h3>
-      <div class="field">
-        <span>Partie gagnée à</span>
-        <div class="segmented">
-          ${state.targets.map((t) => html`<button key=${t} type="button" class=${t === state.target ? 'on' : ''}
-            disabled=${!isHost} onClick=${() => act({ type: 'options', target: t })}>${t}</button>`)}
-        </div>
-        <span class="tiny muted">points. Un point par manche : au preneur s'il tient, sinon à chacun des autres.</span>
-      </div>
+      <${GoalPicker} mode=${state.mode} target=${state.target} targets=${state.targets} disabled=${!isHost}
+        onMode=${(mode) => act({ type: 'options', mode })} onTarget=${(target) => act({ type: 'options', target })} />
       <${Toggle} label="Dix de der" hint="Le dernier pli rapporte 10 points de plus."
         checked=${state.options.dix_de_der} disabled=${!isHost}
         onChange=${(v) => act({ type: 'options', dix_de_der: v })} />

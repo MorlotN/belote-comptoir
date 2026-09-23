@@ -6,6 +6,7 @@ import * as E from '../engine.js';
 import { storage } from '../storage.js';
 import { TopBar, navigate, toast, useWakeLock } from '../ui.js';
 import { RulesButton } from './rules.js';
+import { GoalPicker } from './lobby.js';
 import { Contract, Felt, Scoreboard, Table, useNames } from './table.js';
 
 const HIDDEN_HAND = ['deal', 'bidding', 'playing'];
@@ -14,7 +15,8 @@ const AS_HOST = ['options', 'start', 'next', 'replay'];  // actions de la table,
 function LocalLobby({ game, onStart }) {
   const [names, setNames] = useState(() => (game ? game.players.map((p) => p.name) : [storage.getName()].filter(Boolean)));
   const [draft, setDraft] = useState('');
-  const [target, setTarget] = useState(game ? game.target : 10);
+  const [mode, setMode] = useState(game ? game.mode || 'rounds' : 'rounds');
+  const [target, setTarget] = useState(game ? game.target : E.DEFAULT_TARGET.rounds);
   const [der, setDer] = useState(game ? game.dix_de_der : true);
   const [belote, setBelote] = useState(game ? game.belote : true);
   const full = names.length >= E.MAX_PLAYERS;
@@ -32,7 +34,7 @@ function LocalLobby({ game, onStart }) {
     const { game: g, host } = E.newGame('SOLO', names[0]);
     for (const n of names.slice(1)) E.join(g, n);
     for (const p of g.players) p.connected = true;
-    E.setOptions(g, host, { target, dix_de_der: der, belote });
+    E.setOptions(g, host, { mode, target, dix_de_der: der, belote });
     E.start(g, host);
     onStart(g);
   };
@@ -59,10 +61,8 @@ function LocalLobby({ game, onStart }) {
 
     <section class="panel col">
       <h3>Réglages</h3>
-      <div class="segmented">
-        ${E.TARGETS.map((t) => html`<button key=${t} type="button" class=${t === target ? 'on' : ''} onClick=${() => setTarget(t)}>${t}</button>`)}
-      </div>
-      <span class="tiny muted">points pour gagner</span>
+      <${GoalPicker} mode=${mode} target=${target} targets=${E.TARGETS[mode]}
+        onMode=${(m) => { setMode(m); setTarget(E.DEFAULT_TARGET[m]); }} onTarget=${setTarget} />
       <label class="toggle"><span class="grow"><b>Dix de der</b></span>
         <input type="checkbox" checked=${der} onChange=${(e) => setDer(e.currentTarget.checked)} /><i class="switch"></i></label>
       <label class="toggle"><span class="grow"><b>Belote-rebelote</b></span>

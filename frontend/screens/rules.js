@@ -2,13 +2,12 @@
 // l'accueil, et en feuille par le bouton « Règles » pendant la partie.
 import { useState } from 'preact/hooks';
 import { html } from '../html.js';
-import { Brand, Sheet } from '../ui.js';
+import { Brand, Sheet, goal } from '../ui.js';
 
 // `state` : la table en cours, pour rappeler ses réglages.
 export function RulesContent({ state }) {
-  const target = state ? state.target : 10;
   return html`<div class="rules-text col">
-    ${state ? html`<p class="table-rules">À cette table : premier à <b>${target}</b> points,
+    ${state ? html`<p class="table-rules">À cette table : premier à <b>${goal(state)}</b>,
       dix de der <b>${state.options.dix_de_der ? 'oui' : 'non'}</b>,
       belote-rebelote <b>${state.options.belote ? 'oui' : 'non'}</b>.</p>` : null}
 
@@ -54,9 +53,13 @@ export function RulesContent({ state }) {
       valent 20 (belote-rebelote) ; l'hôte peut retirer l'un ou l'autre avant de lancer la partie.</p>
 
     <h3>Qui marque</h3>
-    <p>Si le preneur ramasse au moins les points annoncés, il marque <b>1 point</b>. Sinon, il chute
-      et <b>chacun des autres</b> marque 1 point. Le premier à ${target} points gagne, à condition
-      d'être seul en tête : en cas d'égalité, on continue.</p>
+    <p>Si le preneur ramasse au moins les points annoncés, il gagne la manche. Sinon, il chute et
+      <b>chacun des autres</b> la gagne. L'hôte choisit comment on compte :</p>
+    <p><b>En manches</b> : chaque manche gagnée vaut 1, le premier à 10 gagne (ou 3, 5, 15, 20).<br />
+      <b>En points</b> : chaque manche gagnée rapporte les points annoncés par le preneur (il annonce
+      30 et tient : +30 pour lui ; il chute : +30 pour chacun des autres), le premier à 200 gagne
+      (ou 100, 300, 500, 1000).</p>
+    <p>Dans les deux cas il faut atteindre l'objectif seul en tête : en cas d'égalité, on continue.</p>
 
     <p class="tiny muted">La belote de comptoir est une variante libre qui change d'un bistrot à
       l'autre : voici les usages retenus ici.</p>

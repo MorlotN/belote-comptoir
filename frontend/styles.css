@@ -210,12 +210,12 @@ input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px
   border: 1px solid #f3e7d0;
 }
 .scoreboard {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; gap: 6px;
   background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px;
 }
 .sb-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); line-height: 1.2; flex: none; }
 .sb-title .tiny { text-transform: none; letter-spacing: 0; font-weight: 500; }
-.sb-list { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; justify-content: flex-end; }
+.sb-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .sb-item {
   display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px;
   border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; max-width: 100%;

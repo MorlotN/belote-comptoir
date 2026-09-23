@@ -3,8 +3,9 @@
 La belote des bistrots, en ligne : **https://morlotn.github.io/belote-comptoir/**
 
 De 2 à 6 joueurs, chacun pour soi. Le donneur choisit de 1 à 8 cartes, chacun annonce
-les points qu'il pense faire, le preneur choisit l'atout. 1 point s'il tient, sinon
-1 point à chacun des autres ; premier seul en tête à 10. Règle détaillée et choix
+les points qu'il pense faire, le preneur entame et sa première carte donne l'atout.
+S'il tient, il gagne la manche, sinon chacun des autres la gagne. On joue en manches
+(premier à 10) ou en points (chaque manche rapporte l'annonce, premier à 200). Règle détaillée et choix
 faits : `docs/regles.md` (et le bouton « Règles » sur chaque écran du jeu).
 
 Deux façons de jouer :

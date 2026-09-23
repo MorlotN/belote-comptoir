@@ -20,7 +20,11 @@ export const MAX_CARDS = 8;  // une main de belote classique ; 6 à cinq joueurs
 export const DIX_DE_DER = 10;
 export const BELOTE = 20;
 export const MAX_BID = 152 + DIX_DE_DER + BELOTE;  // au-delà, même en ramassant tout on ne tient pas
-export const TARGETS = [3, 5, 10, 15, 20];
+// Deux façons de gagner : un nombre de manches gagnées (1 par manche), ou un nombre de points
+// à atteindre, où chaque manche rapporte les points annoncés par le preneur.
+export const MODES = ['rounds', 'points'];
+export const TARGETS = { rounds: [3, 5, 10, 15, 20], points: [100, 200, 300, 500, 1000] };
+export const DEFAULT_TARGET = { rounds: 10, points: 200 };
 export const NAME_MAX = 20;
 
 export class GameError extends Error {
@@ -141,7 +145,7 @@ export function newGame(code, hostName) {
   host.connected = true;
   return {
     game: {
-      code, host: host.id, players: [host], phase: 'lobby', target: 10, dix_de_der: true, belote: true,
+      code, host: host.id, players: [host], phase: 'lobby', mode: 'rounds', target: 10, dix_de_der: true, belote: true,
       round: null, rounds_played: 0, dealer_seat: 0, turn: null, winners: [], history: [], version: 0,
     },
     host,
@@ -169,11 +173,16 @@ function requireTurn(game, actor, phase) {
 
 const isInt = (v) => typeof v === 'number' && Number.isInteger(v);
 
-export function setOptions(game, actor, { target, dix_de_der: der, belote } = {}) {
+export function setOptions(game, actor, { mode, target, dix_de_der: der, belote } = {}) {
   require(actor.id === game.host, "Seul l'hôte règle la partie");
   require(game.phase === 'lobby', 'La partie a déjà commencé');
+  if (mode !== undefined && mode !== null && mode !== game.mode) {
+    require(MODES.includes(mode), 'Façon de gagner inconnue');
+    game.mode = mode;
+    game.target = DEFAULT_TARGET[mode];
+  }
   if (target !== undefined && target !== null) {
-    require(TARGETS.includes(target), 'Objectif inconnu');
+    require(TARGETS[game.mode].includes(target), 'Objectif inconnu');
     game.target = target;
   }
   if (der !== undefined && der !== null) game.dix_de_der = Boolean(der);
@@ -298,9 +307,11 @@ function finishRound(game, last) {
   const pts = roundPoints(game, last);
   const made = pts[r.taker] >= r.high_bid;
   const gained = made ? [r.taker] : game.players.filter((p) => p.id !== r.taker).map((p) => p.id);
-  for (const p of game.players) if (gained.includes(p.id)) p.score += 1;
+  // en manches : 1 ; en points : ce que le preneur a annoncé, pour lui ou pour chacun des autres
+  const gain = game.mode === 'points' ? r.high_bid : 1;
+  for (const p of game.players) if (gained.includes(p.id)) p.score += gain;
   r.result = {
-    void: false, taker: r.taker, bid: r.high_bid, trump: r.trump, made, points: pts,
+    void: false, taker: r.taker, bid: r.high_bid, trump: r.trump, made, points: pts, gain,
     tricks: Object.fromEntries(game.players.map((p) => [p.id, p.tricks])),
     last: game.dix_de_der ? last : null, belote: r.belote_holder, gained,
   };
@@ -385,8 +396,10 @@ const ACTIONS = {
 
 // Une partie sauvée avant que l'atout soit donné par la première carte (23 sept. 2026)
 // pouvait attendre un choix d'atout : le preneur entame simplement.
+// Idem pour une partie d'avant les deux façons de gagner : elle se jouait en manches.
 export function upgrade(game) {
   if (game && game.phase === 'trump') game.phase = 'playing';
+  if (game && !game.mode) game.mode = 'rounds';
   return game;
 }
 
@@ -419,9 +432,10 @@ export function buildView(game, meId) {
     me: meId,
     host: game.host,
     turn: game.turn,
+    mode: game.mode,
     target: game.target,
     options: { dix_de_der: game.dix_de_der, belote: game.belote },
-    targets: TARGETS,
+    targets: TARGETS[game.mode],
     limits: { min_players: MIN_PLAYERS, max_players: MAX_PLAYERS, max_cards: maxCards(game), max_bid: MAX_BID },
     players: game.players.map((p) => ({
       id: p.id, name: p.name, score: p.score, connected: p.connected, cards: p.hand.length, tricks: p.tricks,

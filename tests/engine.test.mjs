@@ -234,6 +234,40 @@ test('options sans dix de der ni belote', () => {
   assert.ok(game.round.result.made);
 });
 
+test('en points, le preneur qui tient marque son annonce', () => {
+  const game = table(2);
+  E.setOptions(game, game.players[0], { mode: 'points' });
+  assert.equal(game.target, 200);
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['JS', 'AH'], Paul: ['7S', '7H'] }, 'Nico', 40);
+  playAll(game, ['Nico', 'JS'], ['Paul', '7S'], ['Nico', 'AH'], ['Paul', '7H']);
+  assert.equal(game.round.result.gain, 40);
+  assert.deepEqual(game.players.map((p) => p.score), [40, 0]);
+});
+
+test("en points, le preneur qui chute donne son annonce à chacun des autres", () => {
+  const game = table(3);
+  E.setOptions(game, game.players[0], { mode: 'points', target: 100 });
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['7C'], Paul: ['AC'], Léa: ['8C'] }, 'Paul', 30);
+  playAll(game, ['Paul', 'AC'], ['Léa', '8C'], ['Nico', '7C']);
+  assert.deepEqual(game.players.map((p) => p.score), [30, 0, 30]);
+});
+
+test('objectif propre à chaque façon de gagner', () => {
+  const game = table(2);
+  const host = game.players[0];
+  assert.throws(() => E.setOptions(game, host, { target: 200 }), E.GameError);  // en manches : 3 à 20
+  E.setOptions(game, host, { mode: 'points', target: 500 });
+  assert.equal(game.target, 500);
+  E.setOptions(game, host, { mode: 'rounds' });
+  assert.equal(game.target, 10);
+  assert.throws(() => E.setOptions(game, host, { mode: 'euros' }), E.GameError);
+  assert.equal(E.buildView(game, host.id).targets.length, 5);
+  const old = { ...game, mode: undefined };
+  assert.equal(E.upgrade(old).mode, 'rounds');
+});
+
 test('carte interdite ou hors tour refusée', () => {
   const game = table(2);
   seatFirstDealer(game, 0);
@@ -304,7 +338,9 @@ for (let seed = 0; seed < 60; seed += 1) {
   test(`partie au hasard n°${seed}`, () => {
     const rnd = seeded(seed);
     const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
-    const game = table(2 + Math.floor(rnd() * 5), pick(E.TARGETS));
+    const game = table(2 + Math.floor(rnd() * 5));
+    E.setOptions(game, game.players[0], { mode: pick(E.MODES) });
+    E.setOptions(game, game.players[0], { target: pick(E.TARGETS[game.mode]) });
     E.apply(game, game.players[0], { type: 'start' });
     for (let i = 0; i < 3000 && game.phase !== 'finished'; i += 1) {
       const actor = E.player(game, game.turn) || game.players[0];

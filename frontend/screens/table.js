@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { Card, CardBacks, SUIT_NAME, Suit, cardName } from '../cards.js';
-import { ConnBanner, Sheet, TopBar, plural } from '../ui.js';
+import { ConnBanner, Sheet, TopBar, goal, plural } from '../ui.js';
 import { RulesButton } from './rules.js';
 
 const ACTIVE = ['deal', 'bidding', 'playing'];
@@ -110,7 +110,7 @@ function DealPicker({ state, act }) {
       ${Array.from({ length: max }, (_, i) => i + 1).map((n) => html`<button key=${n} type="button" class="btn big"
         onClick=${() => act({ type: 'deal', cards: n })}>${n}</button>`)}
     </div>
-    <p class="tiny muted">Peu de cartes, c'est du bluff ; huit, c'est une donne de belote complète.</p>
+    <p class="tiny muted">Peu de cartes, c'est du bluff${max >= 8 ? ' ; huit, c\'est une donne de belote complète' : ''}.</p>
   </div>`;
 }
 
@@ -192,7 +192,7 @@ function RoundResult({ state, act, name }) {
     const made = res.made;
     head = mine ? (made ? 'Tu tiens ton contrat !' : 'Tu chutes…') : `${name(res.taker)} ${made ? 'tient son contrat' : 'chute'}`;
     detail = html`Annonce <b>${res.bid}</b> à <${Suit} suit=${res.trump} />, fait <b>${res.points[res.taker]}</b>.
-      ${made ? html` +1 pour ${mine ? 'toi' : name(res.taker)}.` : html` +1 pour chacun des autres.`}`;
+      ${made ? html` +${res.gain || 1} pour ${mine ? 'toi' : name(res.taker)}.` : html` +${res.gain || 1} pour chacun des autres.`}`;
   }
   return html`<div class="panel col result">
     <h2 class=${res.void ? '' : res.made ? 'ok' : 'ko'}>${head}</h2>
@@ -205,7 +205,7 @@ function RoundResult({ state, act, name }) {
           ${res.belote === p.id ? html` <span class="tag">belote</span>` : null}</td>
         <td>${res.tricks[p.id]}</td>
         <td>${res.points[p.id]}</td>
-        <td><b>${p.score}</b>${res.gained.includes(p.id) ? html` <span class="plus">+1</span>` : null}</td>
+        <td><b>${p.score}</b>${res.gained.includes(p.id) ? html` <span class="plus">+${res.gain || 1}</span>` : null}</td>
       </tr>`)}</tbody>
     </table>`}
     ${res.tie ? html`<p class="small accent">Égalité en tête : on joue jusqu'à ce qu'un seul passe devant.</p>` : null}
@@ -235,7 +235,7 @@ function Final({ state, act, role, onLeave }) {
 function Slate({ state, name, role, onClose, onLeave }) {
   const ranked = [...state.players].sort((a, b) => b.score - a.score);
   return html`<${Sheet} title="L'ardoise" onClose=${onClose}>
-    <p class="small muted">Premier à ${state.target} points, seul en tête.</p>
+    <p class="small muted">Premier à ${goal(state)}, seul en tête.</p>
     <ol class="ranking">
       ${ranked.map((p) => html`<li key=${p.id}><span class="grow">${p.id === state.me ? 'Toi' : p.name}</span><b>${p.score}</b></li>`)}
     </ol>
@@ -260,7 +260,7 @@ function Slate({ state, name, role, onClose, onLeave }) {
 export function Scoreboard({ state }) {
   const top = Math.max(...state.players.map((p) => p.score));
   return html`<div class="scoreboard" aria-label="Scores de la partie">
-    <span class="sb-title">Scores<br /><span class="tiny muted">premier à ${state.target}</span></span>
+    <span class="sb-title">Scores <span class="tiny muted">· premier à ${goal(state)}</span></span>
     <div class="sb-list">
       ${state.players.map((p) => html`<span key=${p.id}
         class=${`sb-item ${p.id === state.me ? 'me' : ''} ${top > 0 && p.score === top ? 'lead' : ''}`}>

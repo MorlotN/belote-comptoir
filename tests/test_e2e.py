@@ -63,7 +63,7 @@ def new_phone(browser, errors):
     return page
 
 
-def take_turn(page, i, taken, cards="4"):
+def take_turn(page, i, taken, cards="4", raises=1):
     """Fait jouer ce téléphone s'il a la main ; renvoie vrai s'il a agi."""
     if page.locator(".picker button").count():
         if "donne" not in taken:
@@ -77,7 +77,8 @@ def take_turn(page, i, taken, cards="4"):
         if page.locator(".bid-chip:not(.pass)").count():
             page.click("button:has-text('Passer')")
         else:
-            page.click("button:has-text('+5')")
+            for _ in range(raises):
+                page.click("button:has-text('+5')")
             page.click("button:has-text('Annoncer')")
     elif page.locator(".card.playable").count():
         cards = page.locator(".card.playable")
@@ -159,8 +160,11 @@ def test_partie_sur_un_seul_telephone(site, browser):
     for name in ("Nico", "Paul", "Léa"):
         page.fill("input[placeholder]", name)
         page.click("button:has-text('Ajouter')")
-    page.click(".segmented button:has-text('3')")
+    # partie en points : chaque manche rapporte l'annonce (ici 1 + 4 × 5 = 21), premier à 100
+    page.click(".segmented button:text-is('Points')")
+    page.click(".segmented button:text-is('100')")
     page.click("button:has-text('Distribuer')")
+    assert "100 points" in page.inner_text(".scoreboard")
     taken: set[str] = set()
     handoffs = 0
     for _ in range(800):
@@ -173,9 +177,11 @@ def test_partie_sur_un_seul_telephone(site, browser):
             assert page.locator(".hand .card").count() == 0  # aucune main visible au passage
             page.click("button:has-text(\"C'est moi\")")
             handoffs += 1
-        elif not take_turn(page, 0, taken, cards="8"):  # une main pleine, en éventail
+        elif not take_turn(page, 0, taken, cards="8", raises=4):  # une main pleine, en éventail
             page.click("button:has-text('Manche suivante')")
     assert page.locator(".final").count()
     assert handoffs > 5
     assert page.locator(".sb-item").count() == 3  # le tableau des scores reste affiché
+    scores = [int(x) for x in page.locator(".ranking b").all_inner_texts()]
+    assert max(scores) >= 100 and all(x % 21 == 0 for x in scores)
     assert not errors, errors

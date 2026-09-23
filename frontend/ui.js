@@ -97,6 +97,17 @@ export function useWakeLock(active) {
   }, [active]);
 }
 
+// L'objectif de la partie en clair : « 10 manches » ou « 200 points ».
+export function goal({ mode, target }) {
+  return `${target} ${mode === 'points' ? 'points' : 'manches'}`;
+}
+
+// Ce qu'on dit d'une façon de gagner, au salon comme dans les règles.
+export const MODE_HINT = {
+  rounds: 'Chaque manche gagnée vaut 1 : au preneur s\'il tient son annonce, sinon à chacun des autres.',
+  points: 'Chaque manche rapporte les points annoncés : au preneur s\'il tient, sinon à chacun des autres.',
+};
+
 export function plural(n, word, pluralWord = `${word}s`) {
   return `${n} ${n > 1 ? pluralWord : word}`;
 }

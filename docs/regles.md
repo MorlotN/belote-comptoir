@@ -43,8 +43,13 @@ fait, et marque **(choix)** ce que les sources laissent ouvert.
   d'atout, annoncé automatiquement quand il les pose.
 - Le preneur compte ses points de cartes, plus le dix de der et la belote s'ils sont à
   lui, et compare à son annonce (atteindre suffit).
-- **(choix)** Objectif réglable par l'hôte : 3, 5, 10 (défaut), 15 ou 20 points. Il
-  faut l'atteindre **seul en tête** : en cas d'égalité, on continue.
+- Deux façons de gagner, au choix de l'hôte (demande de Nicolas le 23 septembre 2026) :
+  - **en manches** : chaque manche gagnée vaut 1 (au preneur s'il tient, sinon à chacun
+    des autres) ; objectif 3, 5, 10 (défaut), 15 ou 20 ;
+  - **en points** : chaque manche gagnée rapporte les points annoncés par le preneur, à
+    lui s'il tient, **(choix)** à chacun des autres s'il chute ; objectif 100, 200
+    (défaut), 300, 500 ou 1000.
+- **(choix)** Il faut atteindre l'objectif **seul en tête** : en cas d'égalité, on continue.
 
 ## Pour changer une règle
 
