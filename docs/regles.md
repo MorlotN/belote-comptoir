@@ -41,6 +41,9 @@ fait, et marque **(choix)** ce que les sources laissent ouvert.
 
 ## Pour changer une règle
 
-Tout est dans `backend/belote/engine.py` (constantes en tête de fichier, puis une
-fonction par action) et testé dans `tests/test_engine.py`. La page « Les règles » du
-jeu (`frontend/screens/rules.js`) doit suivre.
+Tout est dans `frontend/engine.js` (constantes en tête de fichier, puis une fonction
+par action) et testé dans `tests/engine.test.mjs`. La page « Les règles » du jeu
+(`frontend/screens/rules.js`) doit suivre.
+
+Un détail propre au jeu sans serveur : l'hôte ne peut pas quitter sa table (elle vit
+dans son téléphone) ; « Fermer la table » l'arrête pour tout le monde.

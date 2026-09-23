@@ -1,154 +1,178 @@
-"""Une vraie partie à trois téléphones : serveur réel + Chrome headless (bin/e2e).
+"""De vraies parties dans Chrome headless (bin/e2e) : la page statique servie en local,
+chaque joueur n'agit que par l'interface (donner, annoncer, choisir l'atout, toucher
+deux fois une carte pour la poser, passer à la manche suivante).
 
-Chaque joueur agit seulement par l'interface : donner, annoncer, choisir l'atout,
-toucher deux fois une carte pour la poser, passer à la manche suivante.
+- en réseau : trois navigateurs, liaison directe par PeerJS (il faut Internet : le
+  serveur public de PeerJS sert à se trouver) ;
+- sur un seul téléphone : un navigateur qu'on « se passe ».
 """
 
 from __future__ import annotations
 
+import functools
+import http.server
 import os
-import socket
-import subprocess
-import sys
-import time
+import threading
 from pathlib import Path
 
-import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 CHROME = os.environ.get("BELOTE_CHROME", "/usr/bin/google-chrome")
 SHOTS = os.environ.get("BELOTE_SHOTS")  # dossier où poser des captures, facultatif
-
-pytestmark = pytest.mark.e2e
-
-
-def free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2, "is_mobile": True, "has_touch": True}
 
 
-@pytest.fixture
-def server():
-    port = free_port()
-    url = f"http://127.0.0.1:{port}"
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "belote.app:app", "--app-dir", "backend",
-         "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
-        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    )
-    deadline = time.time() + 20
-    while time.time() < deadline:
-        try:
-            if httpx.get(f"{url}/api/health", timeout=1).status_code == 200:
-                break
-        except httpx.HTTPError:
-            time.sleep(0.2)
-    yield url
-    proc.terminate()
-    out, _ = proc.communicate(timeout=5)
-    assert b"Traceback" not in (out or b""), out.decode(errors="replace")
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
 
 
-def shot(page, name):
-    if SHOTS:
-        Path(SHOTS).mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=f"{SHOTS}/{name}.png", full_page=True)
+@pytest.fixture(scope="module")
+def site():
+    handler = functools.partial(QuietHandler, directory=str(ROOT / "frontend"))
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{httpd.server_address[1]}/"
+    httpd.shutdown()
 
 
-def test_partie_complete_a_trois(server):
+@pytest.fixture(scope="module")
+def browser():
     from playwright.sync_api import sync_playwright
 
-    errors: list[str] = []
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(executable_path=CHROME, headless=True)
-        pages = []
-        for _ in range(3):
-            ctx = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
-            page = ctx.new_page()
-            page.on("pageerror", lambda e: errors.append(str(e)))
-            pages.append(page)
+        b = pw.chromium.launch(executable_path=CHROME, headless=True,
+                               args=["--disable-features=WebRtcHideLocalIpsWithMdns"])
+        yield b
+        b.close()
 
-        host, paul, lea = pages
-        host.goto(server)
-        shot(host, "01-accueil")
-        host.fill("input[autocomplete=nickname]", "Nico")
-        host.click("text=Ouvrir une table >> nth=-1")
-        host.wait_for_selector(".big-code")
-        code = host.inner_text(".big-code").strip()
-        for page, name in ((paul, "Paul"), (lea, "Léa")):
-            page.goto(f"{server}/#/t/{code}")
-            page.fill("input[autocomplete=nickname]", name)
-            page.click("button:has-text(\"S'asseoir\")")
-            page.wait_for_selector(".seats")
-        host.wait_for_function("document.querySelectorAll('.seats li').length === 3")
-        host.click(".segmented button:has-text('3')")
-        host.wait_for_selector(".segmented button.on:has-text('3')")
-        shot(host, "02-salon")
-        host.click("button:has-text('Distribuer')")
 
-        shots_taken: set[str] = set()
-        finished = False
-        for _ in range(600):
-            acted = False
-            for i, page in enumerate(pages):
-                if page.locator(".final").count():
-                    finished = True
-                    continue
-                if page.locator(".picker button").count():
-                    if "donne" not in shots_taken:
-                        shot(page, "03-donne")
-                        shots_taken.add("donne")
-                    page.click(".picker button:has-text('4')")
-                    acted = True
-                elif page.locator(".stepper").count():
-                    if "annonce" not in shots_taken:
-                        shot(page, "04-annonce")
-                        shots_taken.add("annonce")
-                    has_bid = page.locator(".bid-chip:not(.pass)").count() > 0
-                    if has_bid:
-                        page.click("button:has-text('Passer')")
-                    else:
-                        page.click("button:has-text('+5')")
-                        page.click("button:has-text('Annoncer')")
-                    acted = True
-                elif page.locator(".suits button").count():
-                    page.click(".suits button >> nth=%d" % (i % 4))
-                    acted = True
-                elif page.locator(".card.playable").count():
-                    card = page.locator(".card.playable").first
-                    card.click()
-                    if "pli" not in shots_taken and page.locator(".played").count():
-                        shot(page, "05-pli")
-                        shots_taken.add("pli")
-                    page.locator(".card.selected").click()
-                    acted = True
-                elif i == 0 and page.locator("button:has-text('Manche suivante')").count():
-                    if "resultat" not in shots_taken:
-                        shot(page, "06-resultat")
-                        shots_taken.add("resultat")
-                    page.click("button:has-text('Manche suivante')")
-                    acted = True
-                if acted:
-                    page.wait_for_timeout(120)
-                    break
-            if finished:
+def shot(page, name, full=True):
+    if SHOTS:
+        Path(SHOTS).mkdir(parents=True, exist_ok=True)
+        page.screenshot(path=f"{SHOTS}/{name}.png", full_page=full)
+
+
+def new_phone(browser, errors):
+    page = browser.new_context(**PHONE).new_page()
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    return page
+
+
+def take_turn(page, i, taken):
+    """Fait jouer ce téléphone s'il a la main ; renvoie vrai s'il a agi."""
+    if page.locator(".picker button").count():
+        if "donne" not in taken:
+            shot(page, "03-donne")
+            taken.add("donne")
+        page.click(".picker button:has-text('4')")
+    elif page.locator(".stepper").count():
+        if "annonce" not in taken:
+            shot(page, "04-annonce")
+            taken.add("annonce")
+        if page.locator(".bid-chip:not(.pass)").count():
+            page.click("button:has-text('Passer')")
+        else:
+            page.click("button:has-text('+5')")
+            page.click("button:has-text('Annoncer')")
+    elif page.locator(".suits button").count():
+        page.click(".suits button >> nth=%d" % (i % 4))
+    elif page.locator(".card.playable").count():
+        page.locator(".card.playable").first.click()
+        if "pli" not in taken and page.locator(".played").count():
+            shot(page, "05-pli")
+            taken.add("pli")
+        page.locator(".card.selected").click()
+    else:
+        return False
+    return True
+
+
+def test_partie_en_reseau_a_trois(site, browser):
+    errors: list[str] = []
+    host, paul, lea = pages = [new_phone(browser, errors) for _ in range(3)]
+
+    host.goto(site)
+    shot(host, "01-accueil")
+    host.fill("input[autocomplete=nickname]", "Nico")
+    host.click("button:has-text('Ouvrir une table')")
+    host.wait_for_selector(".big-code")
+    host.wait_for_selector(".conn.online", timeout=20000)  # inscrit auprès du serveur PeerJS
+    code = host.inner_text(".big-code").strip()
+    for page, name in ((paul, "Paul"), (lea, "Léa")):
+        page.goto(f"{site}#/t/{code}")
+        page.fill("input[autocomplete=nickname]", name)
+        page.click("button:has-text(\"S'asseoir\")")
+        page.wait_for_selector(".seats", timeout=30000)
+    host.wait_for_function("document.querySelectorAll('.seats li').length === 3", timeout=20000)
+    host.click(".segmented button:has-text('3')")
+    paul.wait_for_selector(".segmented button.on:has-text('3')")  # le réglage de l'hôte arrive chez les invités
+    shot(host, "02-salon")
+
+    # les règles s'ouvrent pendant la partie sans quitter la table
+    paul.click("button:has-text('Règles')")
+    paul.wait_for_selector(".sheet .table-rules")
+    assert "premier à 3" in paul.inner_text(".sheet .table-rules").lower()
+    paul.click(".sheet .icon-btn")
+
+    host.click("button:has-text('Distribuer')")
+    taken: set[str] = set()
+    for _ in range(800):
+        if all(p.locator(".final").count() for p in pages):
+            break
+        acted = False
+        for i, page in enumerate(pages):
+            if take_turn(page, i, taken):
+                acted = True
+            elif i == 0 and page.locator("button:has-text('Manche suivante')").count():
+                if "resultat" not in taken:
+                    shot(page, "06-resultat")
+                    taken.add("resultat")
+                page.click("button:has-text('Manche suivante')")
+                acted = True
+            if acted:
+                page.wait_for_timeout(100)
                 break
-            if not acted:  # l'état n'est pas encore arrivé partout
-                pages[0].wait_for_timeout(150)
+        if not acted:  # l'état n'est pas encore arrivé partout
+            pages[0].wait_for_timeout(150)
+    for page in pages:
+        page.wait_for_selector(".final", timeout=10000)
+    shot(host, "07-fin")
+    host.click("button:has-text('Règles')")
+    host.wait_for_selector(".sheet")
+    host.wait_for_timeout(400)
+    shot(host, "08-regles", full=False)
+    host.click(".sheet .icon-btn")
+    host.click("button:has-text('Nouvelle partie')")
+    host.wait_for_selector(".big-code")
+    lea.wait_for_selector(".big-code")
+    assert not errors, errors
 
-        assert finished, "la partie n'est pas allée au bout"
-        for page in pages:
-            page.wait_for_selector(".final")
-        shot(host, "07-fin")
-        host.click("button:has-text('Ardoise')")
-        host.wait_for_selector(".sheet")
-        host.wait_for_timeout(400)  # fin de l'animation d'ouverture
-        if SHOTS:
-            host.screenshot(path=f"{SHOTS}/08-ardoise.png")
-        host.click(".sheet .icon-btn")
-        host.click("button:has-text('Nouvelle partie')")
-        host.wait_for_selector(".big-code")
-        browser.close()
+
+def test_partie_sur_un_seul_telephone(site, browser):
+    errors: list[str] = []
+    page = new_phone(browser, errors)
+    page.goto(f"{site}#/solo")
+    for name in ("Nico", "Paul", "Léa"):
+        page.fill("input[placeholder]", name)
+        page.click("button:has-text('Ajouter')")
+    page.click(".segmented button:has-text('3')")
+    page.click("button:has-text('Distribuer')")
+    taken: set[str] = set()
+    handoffs = 0
+    for _ in range(800):
+        if page.locator(".final").count():
+            break
+        if page.locator(".handoff").count():
+            if "passage" not in taken:
+                shot(page, "09-passage")
+                taken.add("passage")
+            assert page.locator(".hand .card").count() == 0  # aucune main visible au passage
+            page.click("button:has-text(\"C'est moi\")")
+            handoffs += 1
+        elif not take_turn(page, 0, taken):
+            page.click("button:has-text('Manche suivante')")
+    assert page.locator(".final").count()
+    assert handoffs > 5
     assert not errors, errors

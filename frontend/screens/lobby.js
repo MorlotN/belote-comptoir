@@ -2,10 +2,11 @@
 import { useMemo } from 'preact/hooks';
 import { html } from '../html.js';
 import { qrSvg } from '../qr.js';
-import { TopBar, toast } from '../ui.js';
+import { ConnBanner, TopBar, appUrl, toast } from '../ui.js';
+import { RulesButton } from './rules.js';
 
 function shareLink(code) {
-  return `${location.origin}/#/t/${code}`;
+  return appUrl(`#/t/${code}`);
 }
 
 async function share(code) {
@@ -36,19 +37,20 @@ function Toggle({ label, hint, checked, disabled, onChange }) {
   </label>`;
 }
 
-export function Lobby({ state, act, conn }) {
+export function Lobby({ state, act, conn, role, onLeave }) {
   const isHost = state.me === state.host;
   const { min_players: minP, max_players: maxP } = state.limits;
   const enough = state.players.length >= minP;
 
   return html`<div class="screen">
-    <${TopBar} code=${state.code} conn=${conn} />
+    <${TopBar} conn=${conn}><${RulesButton} state=${state} /></${TopBar}>
+    <${ConnBanner} conn=${conn} role=${role} />
 
     <section class="panel invite">
       <div class="col grow">
         <h3>Table</h3>
         <div class="big-code">${state.code}</div>
-        <p class="tiny muted">Scanne le QR ou tape le code sur l'accueil.</p>
+        <p class="tiny muted">Scanne le QR ou tape le code sur l'accueil.${role === 'host' ? ' Garde cet écran ouvert : la table vit dans ton téléphone.' : ''}</p>
         <button class="btn small" type="button" onClick=${() => share(state.code)}>Partager le lien</button>
       </div>
       <${Qr} text=${shareLink(state.code)} />
@@ -98,8 +100,7 @@ export function Lobby({ state, act, conn }) {
           </button>`
         : html`<p class="waiting center">En attente de l'hôte…</p>`}
       <div class="row center-row">
-        <a class="link small" href="#/regles">Les règles</a>
-        <button class="link small" type="button" onClick=${() => act({ type: 'remove', player_id: state.me })}>Quitter la table</button>
+        <button class="link small" type="button" onClick=${onLeave}>${isHost ? 'Fermer la table' : 'Quitter la table'}</button>
       </div>
     </div>
   </div>`;

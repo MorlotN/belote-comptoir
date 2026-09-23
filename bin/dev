@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Lance le serveur en développement (rechargement automatique).
+# Sert la page en local : http://localhost:8010 (même page que sur GitHub Pages).
 # Usage : bin/dev [port]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PORT="${1:-${BELOTE_PORT:-8010}}"
-exec .venv/bin/uvicorn belote.app:app --app-dir backend --host 0.0.0.0 --port "$PORT" --reload --reload-dir backend
+exec python3 -m http.server "${1:-8010}" --bind 127.0.0.1 --directory frontend

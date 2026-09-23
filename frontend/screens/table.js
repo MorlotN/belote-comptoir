@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { Card, CardBacks, SUITS, SUIT_NAME, SUIT_SYMBOL, Suit, cardName } from '../cards.js';
-import { TopBar, plural } from '../ui.js';
+import { ConnBanner, Sheet, TopBar, plural } from '../ui.js';
+import { RulesButton } from './rules.js';
 
 const ACTIVE = ['deal', 'bidding', 'trump', 'playing'];
 
@@ -47,7 +48,7 @@ function Seat({ p, state }) {
   </div>`;
 }
 
-function Contract({ state, name }) {
+export function Contract({ state, name }) {
   const r = state.round;
   if (!r) return null;
   let text;
@@ -63,7 +64,7 @@ function Contract({ state, name }) {
   </div>`;
 }
 
-function Felt({ state, name }) {
+export function Felt({ state, name }) {
   const r = state.round;
   let cards = r.trick;
   let caption = null;
@@ -148,7 +149,7 @@ function TrumpPicker({ state, act }) {
   </div>`;
 }
 
-function Waiting({ text }) {
+export function Waiting({ text }) {
   return html`<p class="waiting">${text}<span class="dots"><i>.</i><i>.</i><i>.</i></span></p>`;
 }
 
@@ -223,66 +224,72 @@ function RoundResult({ state, act, name }) {
   </div>`;
 }
 
-function Final({ state, act }) {
+function Final({ state, act, role, onLeave }) {
   const winner = state.players.find((p) => p.id === state.winners[0]);
   const ranked = [...state.players].sort((a, b) => b.score - a.score);
-  const isHost = state.me === state.host;
+  const canReplay = role === 'host' || role === 'local';
   return html`<div class="panel col result final">
     <div class="trophy" aria-hidden="true">🏆</div>
     <h2>${winner.id === state.me ? 'Tu gagnes la partie !' : `${winner.name} gagne la partie !`}</h2>
     <ol class="ranking">
       ${ranked.map((p) => html`<li key=${p.id}><span class="grow">${p.id === state.me ? 'Toi' : p.name}</span><b>${p.score}</b></li>`)}
     </ol>
-    ${isHost
+    ${canReplay
       ? html`<button type="button" class="btn primary big" onClick=${() => act({ type: 'replay' })}>Nouvelle partie à la même table</button>`
       : html`<${Waiting} text="L'hôte peut relancer une partie" />`}
-    <a class="link center small" href="#/">Quitter</a>
+    <button type="button" class="link center small" onClick=${onLeave}>${role === 'host' ? 'Fermer la table' : 'Quitter'}</button>
   </div>`;
 }
 
-function Slate({ state, name, onClose }) {
+function Slate({ state, name, role, onClose, onLeave }) {
   const ranked = [...state.players].sort((a, b) => b.score - a.score);
-  return html`<div class="overlay" onClick=${onClose}>
-    <div class="sheet col" onClick=${(e) => e.stopPropagation()}>
-      <div class="row"><h2 class="grow">L'ardoise</h2><button class="icon-btn" type="button" onClick=${onClose} aria-label="Fermer">✕</button></div>
-      <p class="small muted">Premier à ${state.target} points, seul en tête.</p>
-      <ol class="ranking">
-        ${ranked.map((p) => html`<li key=${p.id}><span class="grow">${p.id === state.me ? 'Toi' : p.name}</span><b>${p.score}</b></li>`)}
-      </ol>
-      <h3>Manches</h3>
-      ${state.history.length === 0 ? html`<p class="small muted">Rien encore.</p>` : null}
-      <ul class="history">
-        ${[...state.history].reverse().map((h) => html`<li key=${h.number}>
-          <span class="muted">M${h.number}</span>
-          ${h.void
-            ? html`<span class="grow">${plural(h.cards, 'carte')}, tout le monde passe</span>`
-            : html`<span class="grow">${name(h.taker)} ${h.bid} <${Suit} suit=${h.trump} /> · fait ${h.points[h.taker]} · ${plural(h.cards, 'carte')}</span>
-               <span class=${h.made ? 'ok' : 'ko'}>${h.made ? 'tenu' : 'chute'}</span>`}
-        </li>`)}
-      </ul>
-    </div>
-  </div>`;
+  return html`<${Sheet} title="L'ardoise" onClose=${onClose}>
+    <p class="small muted">Premier à ${state.target} points, seul en tête.</p>
+    <ol class="ranking">
+      ${ranked.map((p) => html`<li key=${p.id}><span class="grow">${p.id === state.me ? 'Toi' : p.name}</span><b>${p.score}</b></li>`)}
+    </ol>
+    <h3>Manches</h3>
+    ${state.history.length === 0 ? html`<p class="small muted">Rien encore.</p>` : null}
+    <ul class="history">
+      ${[...state.history].reverse().map((h) => html`<li key=${h.number}>
+        <span class="muted">M${h.number}</span>
+        ${h.void
+          ? html`<span class="grow">${plural(h.cards, 'carte')}, tout le monde passe</span>`
+          : html`<span class="grow">${name(h.taker)} ${h.bid} <${Suit} suit=${h.trump} /> · fait ${h.points[h.taker]} · ${plural(h.cards, 'carte')}</span>
+             <span class=${h.made ? 'ok' : 'ko'}>${h.made ? 'tenu' : 'chute'}</span>`}
+      </li>`)}
+    </ul>
+    ${state.phase !== 'finished' ? html`<button type="button" class="link center small" onClick=${onLeave}>
+      ${{ host: 'Fermer la table', guest: 'Quitter la table', local: 'Arrêter la partie' }[role]}
+    </button>` : null}
+  </${Sheet}>`;
 }
 
-export function Table({ state, act, conn }) {
-  const [slate, setSlate] = useState(false);
+export function useNames(state) {
   const byId = Object.fromEntries(state.players.map((p) => [p.id, p]));
-  const name = (id) => (id === state.me ? 'Toi' : (byId[id] ? byId[id].name : '?'));
+  return (id) => (id && id === state.me ? 'Toi' : (byId[id] ? byId[id].name : '?'));
+}
+
+// `role` : 'host' (la partie tourne ici), 'guest' (invité) ou 'local' (un seul téléphone,
+// `state.me` est alors celui qui tient le téléphone, ou personne entre deux manches).
+export function Table({ state, act, conn, role, label, onLeave }) {
+  const [slate, setSlate] = useState(false);
+  const name = useNames(state);
   const r = state.round;
-  const myTurn = state.turn === state.me && ACTIVE.includes(state.phase);
-  useTurnAlert(myTurn);
+  const myTurn = Boolean(state.me) && state.turn === state.me && ACTIVE.includes(state.phase);
+  useTurnAlert(myTurn && role !== 'local');
 
   const i = state.players.findIndex((p) => p.id === state.me);
-  const others = [...state.players.slice(i + 1), ...state.players.slice(0, i)];
-  const me = state.players[i];
-  const turnName = byId[state.turn] ? byId[state.turn].name : '';
+  const others = i < 0 ? state.players : [...state.players.slice(i + 1), ...state.players.slice(0, i)];
+  const me = i < 0 ? null : state.players[i];
+  const turnName = name(state.turn);
 
   let panel = null;
   if (state.phase === 'deal') {
     panel = myTurn ? html`<${DealPicker} state=${state} act=${act} />` : html`<${Waiting} text=${`${turnName} choisit combien de cartes donner`} />`;
   } else if (state.phase === 'bidding') {
     if (myTurn) panel = html`<${BidPicker} key=${r.number} state=${state} act=${act} />`;
-    else panel = html`<${Waiting} text=${`${me.passed ? 'Tu as passé. ' : ''}${turnName} réfléchit`} />`;
+    else panel = html`<${Waiting} text=${`${me && me.passed ? 'Tu as passé. ' : ''}${turnName} réfléchit`} />`;
   } else if (state.phase === 'trump') {
     panel = myTurn ? html`<${TrumpPicker} state=${state} act=${act} />` : html`<${Waiting} text=${`${turnName} choisit l'atout`} />`;
   } else if (state.phase === 'playing' && !myTurn) {
@@ -290,25 +297,27 @@ export function Table({ state, act, conn }) {
   }
 
   return html`<div class="screen table-screen">
-    <${TopBar} code=${state.code} conn=${conn}>
+    <${TopBar} label=${label || state.code} conn=${conn}>
+      <${RulesButton} state=${state} />
       <button class="btn tiny" type="button" onClick=${() => setSlate(true)}>Ardoise</button>
     </${TopBar}>
+    <${ConnBanner} conn=${conn} role=${role} />
 
     <div class="opponents">${others.map((p) => html`<${Seat} key=${p.id} p=${p} state=${state} />`)}</div>
 
     ${state.phase === 'finished'
-      ? html`<${Final} state=${state} act=${act} />`
+      ? html`<${Final} state=${state} act=${act} role=${role} onLeave=${onLeave} />`
       : state.phase === 'round_end'
         ? html`<${RoundResult} state=${state} act=${act} name=${name} />`
         : html`<${Contract} state=${state} name=${name} /><${Felt} state=${state} name=${name} />`}
 
     <div class="bottom">
       ${panel}
-      <${StandIn} state=${state} act=${act} name=${name} />
-      <${Seat} p=${me} state=${state} />
-      ${ACTIVE.includes(state.phase) ? html`<${Hand} state=${state} act=${act} />` : null}
+      ${role === 'host' ? html`<${StandIn} state=${state} act=${act} name=${name} />` : null}
+      ${me ? html`<${Seat} p=${me} state=${state} />` : null}
+      ${me && ACTIVE.includes(state.phase) ? html`<${Hand} state=${state} act=${act} />` : null}
     </div>
 
-    ${slate ? html`<${Slate} state=${state} name=${name} onClose=${() => setSlate(false)} />` : null}
+    ${slate ? html`<${Slate} state=${state} name=${name} role=${role} onLeave=${onLeave} onClose=${() => setSlate(false)} />` : null}
   </div>`;
 }

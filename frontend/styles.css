@@ -342,6 +342,21 @@ button.card:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 
 .values th, .values td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: right; }
 .values th:first-child, .values td:first-child { text-align: left; }
 
+/* ----- liaison, un seul téléphone, règles ----- */
+.banner {
+  background: rgba(232, 176, 74, .14); border: 1px solid rgba(232, 176, 74, .5); color: var(--accent-2);
+  border-radius: 12px; padding: 8px 12px; font-size: 14px;
+}
+.solo { display: flex; align-items: center; gap: 12px; color: var(--fg); text-decoration: none; }
+.seat-no { width: 22px; color: var(--fg-3); font-weight: 700; }
+.handoff { align-items: center; text-align: center; gap: 8px; margin-top: auto; }
+.handoff-name { font-size: 34px; color: var(--accent-2); }
+.handoff .btn { align-self: stretch; margin-top: 8px; }
+.rules-text { gap: 10px; }
+.rules-text h3 { margin-top: 6px; }
+.table-rules { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 14px; }
+.table-rules b { color: var(--accent-2); }
+
 /* ----- messages ----- */
 .toasts {
   position: fixed; left: 0; right: 0; bottom: calc(18px + var(--safe-b)); z-index: 30;

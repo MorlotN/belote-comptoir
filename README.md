@@ -1,40 +1,53 @@
 # Belote de comptoir
 
-La belote des bistrots, en ligne : de 2 à 6 joueurs, chacun sur son téléphone. Un
-joueur ouvre une table, les autres scannent le QR ou tapent le code à 4 lettres.
-Le donneur choisit de 1 à 5 cartes, chacun annonce les points qu'il pense faire, le
-preneur choisit l'atout. 1 point s'il tient, sinon 1 point à chacun des autres ;
-premier à 10. Règle détaillée et choix faits : `docs/regles.md`.
+La belote des bistrots, en ligne : **https://morlotn.github.io/belote-comptoir/**
 
-## Pile
+De 2 à 6 joueurs, chacun pour soi. Le donneur choisit de 1 à 5 cartes, chacun annonce
+les points qu'il pense faire, le preneur choisit l'atout. 1 point s'il tient, sinon
+1 point à chacun des autres ; premier seul en tête à 10. Règle détaillée et choix
+faits : `docs/regles.md` (et le bouton « Règles » sur chaque écran du jeu).
 
-- `backend/belote/engine.py` : la règle, pure (ni réseau ni horloge)
-- `backend/belote/views.py` : ce que voit chaque joueur (jamais la main des autres)
-- `backend/belote/realtime.py` : tables en mémoire, un verrou par table, diffusion WebSocket
-- `backend/belote/app.py` : FastAPI (`POST /api/games`, `/join`, `/action`, `WS /ws/{code}`)
-- `frontend/` : Preact + htm sans étape de construction (même principe que le blindtest)
+Deux façons de jouer :
 
-Les tables vivent en mémoire : un redémarrage du serveur les efface. Une table sans
-activité depuis 12 h est supprimée.
+- **Chacun son téléphone** : un joueur ouvre une table, les autres scannent le QR ou
+  tapent le code à 4 lettres.
+- **Un seul téléphone** : on inscrit les joueurs et on se passe l'appareil ; un écran
+  de passage cache la main du joueur précédent.
 
-## Lancer
+## Sans serveur
+
+La page est statique (GitHub Pages). En réseau, **le téléphone de celui qui ouvre la
+table fait tourner la partie** : il garde l'état (sauvé dans son navigateur, une
+table survit à un rechargement), applique les règles et envoie à chaque joueur sa
+propre vue, jamais la main des autres. Les invités n'envoient que leurs actions.
+
+Les téléphones se parlent en direct (WebRTC) grâce à [PeerJS](https://peerjs.com) :
+son serveur public gratuit (`0.peerjs.com`) sert seulement à se trouver, et ses
+relais TURN prennent le relais quand deux réseaux mobiles ne se voient pas. Limites :
+
+- l'hôte doit garder le jeu ouvert ; l'écran est maintenu allumé pendant la partie,
+  et si son téléphone se verrouille, les autres attendent et se reconnectent seuls ;
+- si le service PeerJS est en panne, le mode « un seul téléphone » marche toujours.
+
+## Fichiers
+
+- `frontend/engine.js` : la règle, pure, et la vue de chaque joueur
+- `frontend/net.js` : hôte et invités (PeerJS), reconnexions, chien de garde
+- `frontend/screens/` : accueil, salon, table, un seul téléphone, règles
+- `frontend/vendor/` : Preact, htm, PeerJS 1.5.5 (aucune étape de construction)
+- `.github/workflows/pages.yml` : tests puis publication sur GitHub Pages à chaque push
+
+## Lancer, tester
 
 ```
-python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-bin/dev            # http://localhost:8010
-bin/test           # moteur + API, sans réseau
-bin/e2e            # une partie complète à 3 navigateurs (Chrome système)
-BELOTE_SHOTS=/tmp/captures bin/e2e   # idem, avec captures d'écran
+bin/dev        # http://localhost:8010 (même page qu'en ligne)
+bin/test       # moteur de règles : node --test, sans réseau
+bin/e2e        # une partie à 3 navigateurs en réseau + une sur un seul téléphone
+               # (Chrome système, Python + Playwright dans .venv, il faut Internet)
 ```
 
-En production : `docker compose up -d --build` (port 8010, lié à 127.0.0.1 pour un
-tunnel Cloudflare).
+Pour `bin/e2e` : `python3 -m venv .venv && .venv/bin/pip install pytest playwright`.
+`BELOTE_SHOTS=/tmp/captures bin/e2e` garde des captures d'écran.
 
-## Réglages (variables d'environnement)
-
-| Variable | Défaut | Rôle |
-|---|---|---|
-| `BELOTE_MAX_GAMES` | 300 | tables ouvertes en même temps |
-| `BELOTE_CREATE_PER_MIN` | 10 | ouvertures de table par adresse IP et par minute |
-| `BELOTE_JOIN_PER_MIN` | 30 | arrivées à une table par adresse IP et par minute |
-| `BELOTE_LOG_LEVEL` | info | niveau des journaux |
+La première version (commit b12321f) tournait sur un serveur Python (FastAPI +
+WebSocket) ; elle reste dans l'historique si un jour la table doit vivre sur un serveur.
