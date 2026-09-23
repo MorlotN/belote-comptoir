@@ -1,0 +1,12 @@
+services:
+  belote:
+    build: .
+    ports:
+      - "127.0.0.1:8010:8010"  # le tunnel Cloudflare passe par la boucle locale, rien d'autre
+    restart: unless-stopped
+    # les journaux d'accès contiennent des adresses IP : on ne les garde pas indéfiniment
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
