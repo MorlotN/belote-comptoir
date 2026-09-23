@@ -6,7 +6,7 @@ import * as E from '../engine.js';
 import { storage } from '../storage.js';
 import { TopBar, navigate, toast, useWakeLock } from '../ui.js';
 import { RulesButton } from './rules.js';
-import { Contract, Felt, Table, useNames } from './table.js';
+import { Contract, Felt, Scoreboard, Table, useNames } from './table.js';
 
 const HIDDEN_HAND = ['deal', 'bidding', 'playing'];
 const AS_HOST = ['options', 'start', 'next', 'replay'];  // actions de la table, pas d'un joueur
@@ -86,6 +86,7 @@ function Handoff({ game, onReady }) {
   const what = { deal: 'de donner', bidding: "d'annoncer", playing: 'de jouer' }[game.phase];
   return html`<div class="screen table-screen">
     <${TopBar} label="1 téléphone" conn="local"><${RulesButton} state=${state} /></${TopBar}>
+    <${Scoreboard} state=${state} />
     <${Contract} state=${state} name=${name} />
     <${Felt} state=${state} name=${name} />
     <div class="panel col handoff">

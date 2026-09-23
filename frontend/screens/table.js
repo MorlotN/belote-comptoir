@@ -35,11 +35,11 @@ function Seat({ p, state }) {
   return html`<div class=${cls.join(' ')}>
     <div class="seat-top">
       <span class="seat-name">${p.id === state.me ? 'Toi' : p.name}</span>
-      <span class="score" title="points de partie">${p.score}</span>
+      ${state.phase === 'playing' ? html`<span class="round-pts" title="points ramassés dans la manche">${p.points} pts</span>` : null}
     </div>
     <div class="seat-info">
       ${p.dealer && ACTIVE.includes(state.phase) ? html`<span class="tag">donne</span>` : null}
-      ${taker ? html`<span class="tag hot">preneur</span>` : null}
+      ${taker ? html`<span class="tag hot">preneur · ${p.points}/${r.high_bid}</span>` : null}
       ${bid ? html`<span class=${`tag ${bid === 'passe' ? '' : 'hot'}`}>${bid}</span>` : null}
       ${state.phase === 'playing' && p.tricks ? html`<span class="tiny muted">${plural(p.tricks, 'pli')}</span>` : null}
       ${p.id !== state.me ? html`<${CardBacks} count=${p.cards} />` : null}
@@ -52,7 +52,7 @@ export function Contract({ state, name }) {
   const r = state.round;
   if (!r) return null;
   let text;
-  if (state.phase === 'deal') text = `Manche ${r.number} · ${name(r.dealer)} donne`;
+  if (state.phase === 'deal') text = `Manche ${r.number} · ${r.dealer === state.me ? 'tu donnes' : `${name(r.dealer)} donne`}`;
   else if (state.phase === 'bidding') {
     text = r.taker ? html`Plus haute annonce : <b>${r.high_bid}</b> (${name(r.taker)})` : 'Pas encore d\'annonce';
   } else if (r.trump) {
@@ -106,11 +106,11 @@ function DealPicker({ state, act }) {
   const max = state.limits.max_cards;
   return html`<div class="panel col action">
     <h3>Tu donnes : combien de cartes chacun ?</h3>
-    <div class="picker">
+    <div class=${`picker ${max > 5 ? 'two-rows' : ''}`}>
       ${Array.from({ length: max }, (_, i) => i + 1).map((n) => html`<button key=${n} type="button" class="btn big"
         onClick=${() => act({ type: 'deal', cards: n })}>${n}</button>`)}
     </div>
-    <p class="tiny muted">Peu de cartes, c'est du bluff ; cinq, c'est de la belote.</p>
+    <p class="tiny muted">Peu de cartes, c'est du bluff ; huit, c'est une donne de belote complète.</p>
   </div>`;
 }
 
@@ -168,7 +168,7 @@ function Hand({ state, act }) {
       ? html`<button type="button" class="btn primary" onClick=${() => act({ type: 'play', card: sel })}>
           Poser ${cardName(sel, true)}${r.trump ? '' : ` · atout ${SUIT_NAME[sel.slice(-1)]}`}</button>`
       : r.trump ? 'À toi : touche une carte' : 'Ta première carte donne l\'atout : touche une carte'}</p>` : null}
-    <div class="hand">
+    <div class="hand" style=${`--n: ${state.hand.length}`}>
       ${state.hand.map((c) => html`<${Card} key=${c} card=${c} trump=${r && r.trump}
         dim=${myTurn && !playable.has(c)} playable=${myTurn && playable.has(c)} selected=${sel === c}
         onClick=${myTurn ? () => tap(c) : null} />`)}
@@ -256,6 +256,20 @@ function Slate({ state, name, role, onClose, onLeave }) {
   </${Sheet}>`;
 }
 
+// Les points de partie, toujours sous les yeux : un point par manche, premier à `target`.
+export function Scoreboard({ state }) {
+  const top = Math.max(...state.players.map((p) => p.score));
+  return html`<div class="scoreboard" aria-label="Scores de la partie">
+    <span class="sb-title">Scores<br /><span class="tiny muted">premier à ${state.target}</span></span>
+    <div class="sb-list">
+      ${state.players.map((p) => html`<span key=${p.id}
+        class=${`sb-item ${p.id === state.me ? 'me' : ''} ${top > 0 && p.score === top ? 'lead' : ''}`}>
+        <span class="sb-name">${p.id === state.me ? 'Toi' : p.name}</span><b>${p.score}</b>
+      </span>`)}
+    </div>
+  </div>`;
+}
+
 export function useNames(state) {
   const byId = Object.fromEntries(state.players.map((p) => [p.id, p]));
   return (id) => (id && id === state.me ? 'Toi' : (byId[id] ? byId[id].name : '?'));
@@ -291,6 +305,7 @@ export function Table({ state, act, conn, role, label, onLeave }) {
       <button class="btn tiny" type="button" onClick=${() => setSlate(true)}>Ardoise</button>
     </${TopBar}>
     <${ConnBanner} conn=${conn} role=${role} />
+    <${Scoreboard} state=${state} />
 
     <div class="opponents">${others.map((p) => html`<${Seat} key=${p.id} p=${p} state=${state} />`)}</div>
 

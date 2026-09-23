@@ -63,13 +63,13 @@ def new_phone(browser, errors):
     return page
 
 
-def take_turn(page, i, taken):
+def take_turn(page, i, taken, cards="4"):
     """Fait jouer ce téléphone s'il a la main ; renvoie vrai s'il a agi."""
     if page.locator(".picker button").count():
         if "donne" not in taken:
             shot(page, "03-donne")
             taken.add("donne")
-        page.click(".picker button:has-text('4')")
+        page.click(f".picker button:text-is('{cards}')")
     elif page.locator(".stepper").count():
         if "annonce" not in taken:
             shot(page, "04-annonce")
@@ -173,8 +173,9 @@ def test_partie_sur_un_seul_telephone(site, browser):
             assert page.locator(".hand .card").count() == 0  # aucune main visible au passage
             page.click("button:has-text(\"C'est moi\")")
             handoffs += 1
-        elif not take_turn(page, 0, taken):
+        elif not take_turn(page, 0, taken, cards="8"):  # une main pleine, en éventail
             page.click("button:has-text('Manche suivante')")
     assert page.locator(".final").count()
     assert handoffs > 5
+    assert page.locator(".sb-item").count() == 3  # le tableau des scores reste affiché
     assert not errors, errors

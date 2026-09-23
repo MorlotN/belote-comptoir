@@ -93,11 +93,28 @@ test('le donneur choisit le nombre de cartes', () => {
   const [nico, paul] = game.players;
   assert.equal(game.phase, 'deal');
   assert.throws(() => E.deal(game, paul, 3), E.GameError);
-  assert.throws(() => E.deal(game, nico, 6), E.GameError);
+  assert.throws(() => E.deal(game, nico, 9), E.GameError);
   E.deal(game, nico, 4);
   assert.ok(game.players.every((p) => p.hand.length === 4));
   assert.equal(new Set(game.players.flatMap((p) => p.hand)).size, 12);
   assert.equal(game.turn, paul.id);
+});
+
+test('jusqu\'à 8 cartes, dans la limite du jeu de 32', () => {
+  assert.deepEqual([2, 3, 4, 5, 6].map((n) => E.maxCards(table(n))), [8, 8, 8, 6, 5]);
+  const game = table(4);
+  seatFirstDealer(game, 0);
+  E.deal(game, game.players[0], 8);
+  assert.equal(new Set(game.players.flatMap((p) => p.hand)).size, 32);
+});
+
+test('la vue montre les points ramassés dans la manche', () => {
+  const game = table(2);
+  seatFirstDealer(game, 0);
+  rig(game, { Nico: ['KH', 'QH', 'AC'], Paul: ['7H', '8H', '7C'] }, 'Nico', 5);
+  playAll(game, ['Nico', 'KH'], ['Paul', '7H']);
+  const pts = Object.fromEntries(E.buildView(game, game.players[1].id).players.map((p) => [p.name, p.points]));
+  assert.deepEqual(pts, { Nico: 4 + 20, Paul: 0 });  // roi d'atout + belote annoncée
 });
 
 test("enchères jusqu'à ce que tous les autres passent", () => {

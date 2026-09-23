@@ -16,7 +16,7 @@ const PLAIN_POINTS = { A: 11, 10: 10, K: 4, Q: 3, J: 2, 9: 0, 8: 0, 7: 0 };
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
-export const MAX_CARDS = 5;
+export const MAX_CARDS = 8;  // une main de belote classique ; 6 à cinq joueurs, 5 à six (jeu de 32)
 export const DIX_DE_DER = 10;
 export const BELOTE = 20;
 export const MAX_BID = 152 + DIX_DE_DER + BELOTE;  // au-delà, même en ramassant tout on ne tient pas
@@ -353,7 +353,7 @@ export function standIn(game, actor) {
 }
 
 export function autoPlay(game, target) {
-  if (game.phase === 'deal') deal(game, target, maxCards(game));
+  if (game.phase === 'deal') deal(game, target, Math.min(5, maxCards(game)));
   else if (game.phase === 'bidding') bid(game, target, null);
   else if (game.phase === 'playing') {
     const r = game.round;
@@ -399,6 +399,14 @@ export function apply(game, actor, action) {
 
 // ----- ce que voit chaque joueur : sa main, jamais celle des autres -----
 
+// Points déjà ramassés dans la manche : cartes des plis gagnés, plus la belote une fois
+// annoncée (le dix de der ne se compte qu'au dernier pli, déjà dans le résultat).
+function roundSoFar(game, p) {
+  const r = game.round;
+  const cards = p.won.reduce((s, c) => s + points(c, r.trump), 0);
+  return cards + (r.belote_said && r.belote_holder === p.id ? BELOTE : 0);
+}
+
 export function buildView(game, meId) {
   const me = player(game, meId);
   const r = game.round;
@@ -417,6 +425,7 @@ export function buildView(game, meId) {
     limits: { min_players: MIN_PLAYERS, max_players: MAX_PLAYERS, max_cards: maxCards(game), max_bid: MAX_BID },
     players: game.players.map((p) => ({
       id: p.id, name: p.name, score: p.score, connected: p.connected, cards: p.hand.length, tricks: p.tricks,
+      points: r ? roundSoFar(game, p) : 0,  // points ramassés dans la manche en cours
       host: p.id === game.host, dealer: Boolean(r && r.dealer === p.id), passed: p.passed,
       bid: r && p.id in lastBid ? lastBid[p.id] : 'none',  // "none" : pas encore parlé
     })),

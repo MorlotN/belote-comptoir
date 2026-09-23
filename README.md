@@ -2,7 +2,7 @@
 
 La belote des bistrots, en ligne : **https://morlotn.github.io/belote-comptoir/**
 
-De 2 à 6 joueurs, chacun pour soi. Le donneur choisit de 1 à 5 cartes, chacun annonce
+De 2 à 6 joueurs, chacun pour soi. Le donneur choisit de 1 à 8 cartes, chacun annonce
 les points qu'il pense faire, le preneur choisit l'atout. 1 point s'il tient, sinon
 1 point à chacun des autres ; premier seul en tête à 10. Règle détaillée et choix
 faits : `docs/regles.md` (et le bouton « Règles » sur chaque écran du jeu).

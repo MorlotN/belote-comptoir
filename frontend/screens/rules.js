@@ -16,8 +16,8 @@ export function RulesContent({ state }) {
       la donne tourne d'un joueur à chaque manche.</p>
 
     <h3>La donne</h3>
-    <p>Le donneur choisit combien de cartes chacun reçoit : <b>de 1 à 5</b>. Pas de retourne,
-      les cartes qui restent ne servent pas.</p>
+    <p>Le donneur choisit combien de cartes chacun reçoit : <b>de 1 à 8</b> (6 au plus à cinq
+      joueurs, 5 à six). Pas de retourne, les cartes qui restent ne servent pas.</p>
 
     <h3>Les annonces</h3>
     <p>En commençant par le joueur qui suit le donneur, chacun annonce le nombre de points qu'il pense

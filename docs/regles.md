@@ -8,7 +8,7 @@ fait, et marque **(choix)** ce que les sources laissent ouvert.
 ## Ce que disent toutes les sources
 
 - 2 à 6 joueurs, chacun pour soi, jeu de 32 cartes.
-- Le donneur donne à chacun **de 1 à 5 cartes**, à son gré. Pas de retourne, pas de
+- Le donneur donne à chacun **de 1 à 5 cartes**, à son gré (le jeu va jusqu'à 8, voir plus bas). Pas de retourne, pas de
   second tour de distribution ; les cartes restantes ne servent pas.
 - Chacun à son tour annonce le nombre de points qu'il pense réaliser, ou passe.
 - Le plus offrant joue le premier. Les sources disent qu'il choisit l'atout ; à la table de
@@ -21,7 +21,9 @@ fait, et marque **(choix)** ce que les sources laissent ouvert.
 
 ## Ce que le jeu a tranché
 
-- **(choix)** Même nombre de cartes pour tous, choisi par le donneur à chaque manche.
+- Même nombre de cartes pour tous, choisi par le donneur à chaque manche, **de 1 à 8**
+  (demande de Nicolas le 23 septembre 2026 : « plus de cartes »). Le jeu de 32 limite à 6
+  cartes à cinq joueurs et 5 à six.
 - **(choix)** Enchères : entier de 1 à 182, toujours strictement plus haut que la
   précédente. Qui passe ne reparle plus. L'enchère s'arrête quand tous les autres ont
   passé ; si tout le monde passe, la manche est blanche et la donne tourne.

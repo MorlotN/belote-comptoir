@@ -209,6 +209,26 @@ input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px
   background: repeating-linear-gradient(45deg, #8e2430 0 2px, #b8384a 2px 4px);
   border: 1px solid #f3e7d0;
 }
+.scoreboard {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px;
+}
+.sb-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--fg-2); line-height: 1.2; flex: none; }
+.sb-title .tiny { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.sb-list { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; justify-content: flex-end; }
+.sb-item {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px;
+  border-radius: 999px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; max-width: 100%;
+}
+.sb-item b {
+  min-width: 26px; height: 26px; border-radius: 13px; display: inline-grid; place-items: center;
+  background: var(--bg-3); color: var(--accent-2); font-size: 15px; padding: 0 6px;
+}
+.sb-name { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-item.me { border-color: var(--fg-3); }
+.sb-item.lead { border-color: var(--accent); }
+.sb-item.lead b { background: var(--accent); color: #231a06; }
+.round-pts { font-size: 13px; font-weight: 700; color: var(--accent-2); white-space: nowrap; }
 .contract {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   font-size: 15px; padding: 0 2px;
@@ -255,6 +275,7 @@ input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px
 .bottom { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
 .action h3 { color: var(--accent-2); }
 .picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.picker.two-rows { grid-template-columns: repeat(4, 1fr); }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .stepper .btn { flex: 1; padding: 8px 0; min-width: 0; }
 .bid-value {
@@ -279,7 +300,7 @@ input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px
 }
 .card.red { color: var(--card-red); }
 .card.black { color: var(--card-black); }
-.card.hand { width: min(18.5vw, 84px); aspect-ratio: 5 / 7; }
+.card.hand { width: var(--card-w, min(18.5vw, 84px)); aspect-ratio: 5 / 7; }
 .card.table { width: 54px; aspect-ratio: 5 / 7; }
 .c-corner { position: absolute; top: 5px; left: 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .c-flip { top: auto; left: auto; bottom: 5px; right: 6px; transform: rotate(180deg); }
@@ -294,13 +315,20 @@ input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px
   content: ""; position: absolute; inset: 3px; border-radius: 6px;
   border: 1.5px solid rgba(232, 176, 74, .9); pointer-events: none;
 }
-.card.dim { opacity: .38; transform: translateY(6px); }
+/* pas de transparence : dans l'éventail, on verrait la carte d'en dessous */
+.card.dim { filter: brightness(.5) saturate(.5); transform: translateY(6px); }
 .card.playable { cursor: pointer; }
 .card.selected { transform: translateY(-16px); box-shadow: 0 0 0 3px var(--accent), 0 12px 22px rgba(0, 0, 0, .45); }
 button.card:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
 .hand-zone { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 6px; }
 .hand-hint { min-height: 46px; display: flex; align-items: center; color: var(--accent-2); font-weight: 700; }
-.hand { display: flex; justify-content: center; gap: 6px; padding-top: 14px; width: 100%; }
+.hand {
+  --card-w: min(18.5vw, 84px);
+  --hand-w: min(100vw - 32px, 488px);
+  display: flex; justify-content: center; padding-top: 14px; width: 100%;
+}
+/* au-delà de cinq cartes, elles se chevauchent en laissant voir leur coin */
+.hand .card + .card { margin-left: min(6px, calc((var(--hand-w) - var(--card-w)) / (var(--n) - 1) - var(--card-w))); }
 
 /* ----- résultats ----- */
 .result h2.ok { color: var(--ok); }
