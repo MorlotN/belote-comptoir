@@ -120,10 +120,17 @@ def test_partie_en_reseau_a_trois(site, browser):
     paul.click(".sheet .icon-btn")
 
     host.click("button:has-text('Distribuer')")
+    # Paul découvre le jeu : il ouvre l'aide-mémoire, qui reste à côté du plateau
+    paul.click("button:has-text('Règles')")
+    paul.wait_for_selector(".cheat .cheat-values")
+    help_seen = False
     taken: set[str] = set()
     for _ in range(800):
         if all(p.locator(".final").count() for p in pages):
             break
+        if not help_seen and paul.locator(".hand .c-pts").count():  # chaque carte montre sa valeur
+            help_seen = True
+            shot(paul, "12-aide")
         acted = False
         for i, page in enumerate(pages):
             if take_turn(page, i, taken):
@@ -142,7 +149,9 @@ def test_partie_en_reseau_a_trois(site, browser):
     for page in pages:
         page.wait_for_selector(".final", timeout=10000)
     shot(host, "07-fin")
+    assert help_seen
     host.click("button:has-text('Règles')")
+    host.click(".cheat button:has-text('Toutes les règles')")
     host.wait_for_selector(".sheet")
     host.wait_for_timeout(400)
     shot(host, "08-regles", full=False)

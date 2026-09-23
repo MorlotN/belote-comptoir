@@ -2,8 +2,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { Card, CardBacks, SUIT_NAME, Suit, cardName } from '../cards.js';
-import { ConnBanner, Sheet, TopBar, goal, plural } from '../ui.js';
-import { RulesButton } from './rules.js';
+import { ConnBanner, Sheet, TopBar, goal, plural, useHelp } from '../ui.js';
+import { points } from '../engine.js';
+import { CheatSheet, RulesSheet } from './rules.js';
 
 const ACTIVE = ['deal', 'bidding', 'playing'];
 
@@ -66,7 +67,7 @@ export function Contract({ state, name }) {
   </div>`;
 }
 
-export function Felt({ state, name }) {
+export function Felt({ state, name, help }) {
   const r = state.round;
   let cards = r.trick;
   let caption = null;
@@ -93,7 +94,7 @@ export function Felt({ state, name }) {
     <div class="trick">
       ${cards.map((t) => html`<div key=${t.card} class=${`played ${faded && t.player === r.last_trick.winner ? 'winner' : ''}`}>
         ${t.say ? html`<span class="say">${t.say} !</span>` : null}
-        <${Card} card=${t.card} size="table" trump=${r.trump} />
+        <${Card} card=${t.card} size="table" trump=${r.trump} value=${help ? points(t.card, r.trump) : undefined} />
         <span class="who">${name(t.player)}</span>
       </div>`)}
       ${!cards.length ? html`<p class="felt-hint">${state.turn === state.me ? 'Tu entames' : `${name(state.turn)} entame`}${r.trump ? '' : ' : cette carte donnera l\'atout'}</p>` : null}
@@ -151,7 +152,7 @@ function StandIn({ state, act, name }) {
   </button>`;
 }
 
-function Hand({ state, act }) {
+function Hand({ state, act, help }) {
   const r = state.round;
   const myTurn = state.phase === 'playing' && state.turn === state.me;
   const [sel, setSel] = useState(null);
@@ -171,6 +172,7 @@ function Hand({ state, act }) {
     <div class="hand" style=${`--n: ${state.hand.length}`}>
       ${state.hand.map((c) => html`<${Card} key=${c} card=${c} trump=${r && r.trump}
         dim=${myTurn && !playable.has(c)} playable=${myTurn && playable.has(c)} selected=${sel === c}
+        value=${help ? points(c, r && r.trump) : undefined}
         onClick=${myTurn ? () => tap(c) : null} />`)}
     </div>
   </div>`;
@@ -279,6 +281,8 @@ export function useNames(state) {
 // `state.me` est alors celui qui tient le téléphone, ou personne entre deux manches).
 export function Table({ state, act, conn, role, label, onLeave }) {
   const [slate, setSlate] = useState(false);
+  const [help, setHelp] = useHelp();
+  const [rules, setRules] = useState(false);
   const name = useNames(state);
   const r = state.round;
   const myTurn = Boolean(state.me) && state.turn === state.me && ACTIVE.includes(state.phase);
@@ -299,9 +303,9 @@ export function Table({ state, act, conn, role, label, onLeave }) {
     panel = html`<${Waiting} text=${`${turnName} joue`} />`;
   }
 
-  return html`<div class="screen table-screen">
+  return html`<div class=${`screen table-screen ${help ? 'with-help' : ''}`}>
     <${TopBar} label=${label || state.code} conn=${conn}>
-      <${RulesButton} state=${state} />
+      <button class=${`btn tiny ${help ? 'on' : ''}`} type="button" aria-pressed=${help} onClick=${() => setHelp(!help)}>Règles</button>
       <button class="btn tiny" type="button" onClick=${() => setSlate(true)}>Ardoise</button>
     </${TopBar}>
     <${ConnBanner} conn=${conn} role=${role} />
@@ -313,15 +317,17 @@ export function Table({ state, act, conn, role, label, onLeave }) {
       ? html`<${Final} state=${state} act=${act} role=${role} onLeave=${onLeave} />`
       : state.phase === 'round_end'
         ? html`<${RoundResult} state=${state} act=${act} name=${name} />`
-        : html`<${Contract} state=${state} name=${name} /><${Felt} state=${state} name=${name} />`}
+        : html`<${Contract} state=${state} name=${name} /><${Felt} state=${state} name=${name} help=${help} />`}
+    ${help ? html`<${CheatSheet} state=${state} onMore=${() => setRules(true)} onClose=${() => setHelp(false)} />` : null}
 
     <div class="bottom">
       ${panel}
       ${role === 'host' ? html`<${StandIn} state=${state} act=${act} name=${name} />` : null}
       ${me ? html`<${Seat} p=${me} state=${state} />` : null}
-      ${me && ACTIVE.includes(state.phase) ? html`<${Hand} state=${state} act=${act} />` : null}
+      ${me && ACTIVE.includes(state.phase) ? html`<${Hand} state=${state} act=${act} help=${help} />` : null}
     </div>
 
+    ${rules ? html`<${RulesSheet} state=${state} onClose=${() => setRules(false)} />` : null}
     ${slate ? html`<${Slate} state=${state} name=${name} role=${role} onLeave=${onLeave} onClose=${() => setSlate(false)} />` : null}
   </div>`;
 }

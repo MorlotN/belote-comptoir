@@ -26,7 +26,8 @@ export function Suit({ suit }) {
 }
 
 // `size` : 'hand' (grande, dans la main) ou 'table' (posée sur le tapis).
-export function Card({ card, size = 'hand', trump, dim, selected, playable, onClick }) {
+// `value` : sa valeur en points, affichée dans un coin quand l'aide-mémoire est ouvert.
+export function Card({ card, size = 'hand', trump, dim, selected, playable, onClick, value }) {
   const s = suitOf(card);
   const cls = ['card', size, isRed(card) ? 'red' : 'black'];
   if (s === trump) cls.push('trump');
@@ -36,7 +37,8 @@ export function Card({ card, size = 'hand', trump, dim, selected, playable, onCl
   const body = html`
     <span class="c-corner"><span class="c-rank">${rankLabel(card)}</span><span class="c-suit">${SUIT_SYMBOL[s]}</span></span>
     <span class="c-mid">${SUIT_SYMBOL[s]}</span>
-    <span class="c-corner c-flip"><span class="c-rank">${rankLabel(card)}</span><span class="c-suit">${SUIT_SYMBOL[s]}</span></span>`;
+    <span class="c-corner c-flip"><span class="c-rank">${rankLabel(card)}</span><span class="c-suit">${SUIT_SYMBOL[s]}</span></span>
+    ${value === undefined ? null : html`<span class=${`c-pts ${value ? '' : 'zero'}`} title="points">${value}</span>`}`;
   if (!onClick) return html`<div class=${cls.join(' ')} aria-label=${cardName(card)}>${body}</div>`;
   return html`<button type="button" class=${cls.join(' ')} aria-label=${cardName(card)} onClick=${onClick}>${body}</button>`;
 }

@@ -97,6 +97,18 @@ export function useWakeLock(active) {
   }, [active]);
 }
 
+// Aide-mémoire ouvert ou fermé : le téléphone s'en souvient d'une manche et d'une partie à l'autre.
+export function useHelp() {
+  const [on, setOn] = useState(() => {
+    try { return localStorage.getItem('belote:help') === '1'; } catch (_) { return false; }
+  });
+  const set = (v) => {
+    setOn(v);
+    try { localStorage.setItem('belote:help', v ? '1' : '0'); } catch (_) { /* stockage bloqué */ }
+  };
+  return [on, set];
+}
+
 // L'objectif de la partie en clair : « 10 manches » ou « 200 points ».
 export function goal({ mode, target }) {
   return `${target} ${mode === 'points' ? 'points' : 'manches'}`;

@@ -1,8 +1,9 @@
 // La règle telle que le jeu l'applique (miroir de docs/regles.md) : en page depuis
 // l'accueil, et en feuille par le bouton « Règles » pendant la partie.
 import { useState } from 'preact/hooks';
+import { SUIT_NAME, Suit } from '../cards.js';
 import { html } from '../html.js';
-import { Brand, Sheet, goal } from '../ui.js';
+import { Brand, MODE_HINT, Sheet, goal } from '../ui.js';
 
 // `state` : la table en cours, pour rappeler ses réglages.
 export function RulesContent({ state }) {
@@ -70,7 +71,55 @@ export function RulesButton({ state }) {
   const [open, setOpen] = useState(false);
   return html`
     <button class="btn tiny" type="button" onClick=${() => setOpen(true)}>Règles</button>
-    ${open ? html`<${Sheet} title="Les règles" onClose=${() => setOpen(false)}><${RulesContent} state=${state} /></${Sheet}>` : null}`;
+    ${open ? html`<${RulesSheet} state=${state} onClose=${() => setOpen(false)} />` : null}`;
+}
+
+export function RulesSheet({ state, onClose }) {
+  return html`<${Sheet} title="Les règles" onClose=${onClose}><${RulesContent} state=${state} /></${Sheet}>`;
+}
+
+const VALUES = [['V', 20, 2], ['9', 14, 0], ['A', 11, 11], ['10', 10, 10], ['R', 4, 4], ['D', 3, 3], ['8', 0, 0], ['7', 0, 0]];
+
+// Ce qu'il faut savoir maintenant, selon le moment de la manche.
+function tip(state) {
+  const r = state.round;
+  switch (state.phase) {
+    case 'deal':
+      return `Le donneur choisit combien de cartes chacun reçoit : de 1 à ${state.limits.max_cards}.`;
+    case 'bidding':
+      return `Annonce les points que tu penses ramasser dans tes plis${state.options.dix_de_der ? ', dix de der compris' : ''}, plus haut que la dernière annonce, ou passe. Qui passe ne reparle plus. Le dernier à annoncer est le preneur.`;
+    case 'playing':
+      return `${r && r.trump ? '' : 'Le preneur entame : la couleur de sa première carte devient l\'atout. '}Fournis la couleur demandée ; si tu n'en as pas, coupe à l'atout ; à l'atout, monte si tu peux. Sinon, joue ce que tu veux. Les cartes interdites sont grisées.`;
+    default:
+      return `Le preneur qui ramasse au moins son annonce gagne la manche, sinon chacun des autres la gagne. ${MODE_HINT[state.mode]}`;
+  }
+}
+
+// L'aide-mémoire qui s'affiche à côté du plateau quand on touche « Règles ».
+export function CheatSheet({ state, onMore, onClose }) {
+  const trump = state.round && state.round.trump;
+  return html`<aside class="panel cheat" aria-label="Aide-mémoire">
+    <div class="row">
+      <h3 class="grow">Aide-mémoire</h3>
+      <button class="link small" type="button" onClick=${onMore}>Toutes les règles</button>
+      <button class="icon-btn" type="button" onClick=${onClose} aria-label="Fermer l'aide-mémoire">✕</button>
+    </div>
+    <table class="cheat-values">
+      <thead><tr><th></th>${VALUES.map(([k]) => html`<th key=${k}>${k}</th>`)}</tr></thead>
+      <tbody>
+        <tr class=${trump ? 'hot' : ''}><td>Atout${trump ? html` <${Suit} suit=${trump} />` : null}</td>${VALUES.map(([k, t]) => html`<td key=${k}>${t}</td>`)}</tr>
+        <tr><td>Autres</td>${VALUES.map(([k, , o]) => html`<td key=${k}>${o}</td>`)}</tr>
+      </tbody>
+    </table>
+    <p class="tiny muted">${[
+      trump ? `Atout : ${SUIT_NAME[trump]}.` : '',
+      'V valet, D dame, R roi.',
+      state.options.dix_de_der ? 'Dernier pli : +10.' : '',
+      state.options.belote ? 'Roi + dame d\'atout : +20.' : '',
+      'Chaque carte affiche sa valeur.',
+    ].filter(Boolean).join(' ')}</p>
+    <p class="small">${tip(state)}</p>
+  </aside>`;
 }
 
 export function Rules() {
